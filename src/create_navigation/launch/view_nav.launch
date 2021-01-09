@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<launch>
+	<arg name="model" default="$(find xacro)/xacro --inorder '$(find create_description)/urdf/create_base.urdf.xacro'" />
+	<arg name="gui" default="true" />
+
+	<param name="robot_description" command="$(arg model)" />
+
+    <!-- set GUI parameters，display joint control plug-in -->
+	<param name="use_gui" value="$(arg gui)"/>
+	
+	<!-- run robot_state_publisher node，publish tf  
+	<node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher" />
+-->
+	
+	<!-- run rviz -->
+	<node name="rviz" pkg="rviz" type="rviz" args="-d $(find create_navigation)/rviz/nav.rviz" required="true" />
+
+</launch>
