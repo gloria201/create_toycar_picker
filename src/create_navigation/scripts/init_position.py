@@ -6,7 +6,7 @@ from tf.transformations import quaternion_inverse, quaternion_multiply, quaterni
 import numpy as np
 import rospy
 import threading
-import queue
+import Queue
 from geometry_msgs.msg import Pose, PoseWithCovarianceStamped, Point, Quaternion, Twist
 from nav_msgs.msg import Odometry
 
@@ -70,8 +70,8 @@ def listen_odom_topic_callback(data,q):
 def main():
     # mp.set_start_method(method='spawn')  # init fork spawn forkserver
     rospy.init_node('pub_odom_map', anonymous=True)
-    init_pose_q = queue.Queue(maxsize=4)
-    odom_pose_q = queue.Queue(maxsize=4)
+    init_pose_q = Queue.Queue(maxsize=4)
+    odom_pose_q = Queue.Queue(maxsize=4)
 
     processes = [threading.Thread(target=listen_rviz_init_pose, args=(init_pose_q, ))]
     processes.append(threading.Thread(target=odom_map_pos, args=(init_pose_q,odom_pose_q, )))

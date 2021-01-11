@@ -3,7 +3,6 @@
 import time
 import tf
 import rospy
-import multiprocessing as mp
 from geometry_msgs.msg import Pose, PoseWithCovarianceStamped, Point, Quaternion, Twist
 from nav_msgs.msg import Odometry
 
