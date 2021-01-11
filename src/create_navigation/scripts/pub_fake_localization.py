@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 import time
 import tf
 import rospy
@@ -26,35 +28,5 @@ class fake_localiztion():
                          "/odom"
                          )
 
-
-def listen_rviz_init_pose(q):
-    rospy.init_node('rviz_init_pose_listen', anonymous=True)
-    rospy.Subscriber('/initialpose', PoseWithCovarianceStamped, listen_rviz_init_pose_callback, callback_args=q)
-    rospy.spin()
-
-def listen_rviz_init_pose_callback(data,q):
-    q.put(data)
-    q.get() if q.qsize() > 1 else time.sleep(0.001)
-
-def main():
-    fake_localiztion()
-    '''
-    mp.set_start_method(method='spawn')  # init fork spawn forkserver
-    init_pose_q = mp.Queue(maxsize=4)
-
-    processes = [mp.Process(target=listen_rviz_init_pose, args=(init_pose_q, ))]
-    processes.append(mp.Process(target=fake_localiztion, args=(init_pose_q, )))
-
-    for process in processes:  # debug
-        process.daemon = True  # setattr(process, 'deamon', True)
-        process.start()  # debug
-    for process in processes:
-        process.join()
-    '''
-
-def test():
-    listen_rviz_init_pose([])
-
 if __name__ == '__main__':
-    main()
-    # test()
+    fake_localiztion()

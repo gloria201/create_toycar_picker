@@ -17,11 +17,12 @@
     <rosparam file="$(find create_navigation)/config/create/dwa_local_planner_params.yaml" />
   </node>   
     
-  <!-- Start the navigation test   --> 
+  <!-- Start the navigation test  
   <node pkg="create_navigation" type="nav_test.py" name="nav_test" output="screen">  
     <param name="rest_time" value="1" />  
     <param name="fake_test" value="true" />  
   </node> 
+  --> 
 
   <!-- Start Rviz 
   <node name="rviz" pkg="rviz" type="rviz" args="-d $(find create_navigation)/rviz/nav.rviz" />
