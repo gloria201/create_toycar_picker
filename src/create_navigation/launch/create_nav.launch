@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<launch>  
+
+  <!-- Run a static transform between /base_footprint and /laser   --> 
+   <node pkg="tf" type="static_transform_publisher" name="laser_broadcaster" 
+args="0 0 0.18 0 0 0 /base_footprint /laser 100" /> 
+
+  <!-- Start RPLidar A1M8 -->  
+  <include file="$(find rplidar_ros)/launch/rplidar.launch" /> 
+ 
+  <!-- Start iRobot Create 2 controller -->  
+  <include file="$(find create_bringup)/launch/create_2.launch" /> 
+ 
+  <!-- Decalre map with a constant config file -->
+  <arg name="map" default="bedroom.yaml" />
+
+  <!-- Load the desired map with map_server -->
+  <node name="map_server" pkg="map_server" type="map_server" args="$(find create_navigation)/maps/bedroom.yaml"/> 
+
+  <!-- Start the move_base node -->  
+  <include file="$(find create_navigation)/launch/move_base.launch" /> 
+
+  <!-- Start the AMCL node -->  
+  <include file="$(find create_navigation)/launch/amcl.launch" /> 
+
+  <!-- Start Rviz   --> 
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find create_navigation)/rviz/nav.rviz" />
+
+    
+</launch>

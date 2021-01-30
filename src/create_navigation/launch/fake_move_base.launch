@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<launch>  
+  <!-- Run a static transform between /odom and /map, /map and /world to fake localization  
+   <node pkg="tf" type="static_transform_publisher" name="odom_map_broadcaster" 
+args="0 0 0 0 0 0 /odom /map 100" /> 
+  --> 
+  <!-- 2d init odom -->
+  <node pkg="create_navigation" type="init_position.py" name="init_position" output="screen" />   
+
+  <!-- Run the map server with the desired map   -->
+  <node name="map_server" pkg="map_server" type="map_server" args="$(find create_navigation)/maps/room_gmapping.yaml"/> 
+
+  <!-- fake localization  -->
+  <node pkg="create_navigation" type="pub_fake_localization.py" name="pub_fake_localization" output="screen" /> 
+
+  <param name="use_sim_time" value="false" />  
+  
+  <!-- Start iRobot Create 2 controller -->  
+  <include file="$(find create_bringup)/launch/create_2.launch" /> 
+
+  <!-- The move_base node -->  
+  <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">  
+    <rosparam file="$(find create_navigation)/config/create/costmap_common_params.yaml" command="load" ns="global_costmap" />
+    <rosparam file="$(find create_navigation)/config/create/costmap_common_params.yaml" command="load" ns="local_costmap" />
+    <rosparam file="$(find create_navigation)/config/create/local_costmap_params.yaml" command="load" />
+    <rosparam file="$(find create_navigation)/config/create/global_costmap_params.yaml" command="load" />
+
+    <rosparam file="$(find create_navigation)/config/create/move_base_params.yaml" command="load" />
+    <rosparam file="$(find create_navigation)/config/create/dwa_local_planner_params.yaml" />
+  </node>   
+
+  <!-- Start Rviz   --> 
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find create_navigation)/rviz/nav.rviz" />
+
+    
+</launch>
