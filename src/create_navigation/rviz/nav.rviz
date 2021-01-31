@@ -7,13 +7,12 @@ Panels:
         - /Global Options1
         - /Status1
         - /Grid1
-        - /LaserScan1
         - /Map1
-        - /Map1/Status1
+        - /TF1
         - /TF1/Frames1
         - /RobotModel1/Links1
         - /Path1
-      Splitter Ratio: 0.3958691954612732
+      Splitter Ratio: 0.6000000238418579
     Tree Height: 726
   - Class: rviz/Selection
     Name: Selection
@@ -33,7 +32,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: LaserScan
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -69,20 +68,20 @@ Visualization Manager:
       Channel Name: intensity
       Class: rviz/LaserScan
       Color: 255; 255; 255
-      Color Transformer: ""
+      Color Transformer: Intensity
       Decay Time: 0
       Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
-      Max Intensity: 4096
+      Max Intensity: 47
       Min Color: 0; 0; 0
-      Min Intensity: 0
+      Min Intensity: 47
       Name: LaserScan
-      Position Transformer: ""
+      Position Transformer: XYZ
       Queue Size: 10
       Selectable: true
       Size (Pixels): 3
-      Size (m): 0.009999999776482582
+      Size (m): 0.029999999329447746
       Style: Flat Squares
       Topic: /scan
       Unreliable: false
@@ -104,13 +103,64 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: false
+        base_footprint:
+          Value: true
+        base_link:
+          Value: false
+        front_wheel_link:
+          Value: false
+        gyro_link:
+          Value: false
+        laser:
+          Value: true
+        left_cliff_sensor_link:
+          Value: false
+        left_wheel_link:
+          Value: false
+        leftfront_cliff_sensor_link:
+          Value: false
+        map:
+          Value: true
+        odom:
+          Value: true
+        right_cliff_sensor_link:
+          Value: false
+        right_wheel_link:
+          Value: false
+        rightfront_cliff_sensor_link:
+          Value: false
+        wall_sensor_link:
+          Value: false
       Marker Scale: 1
       Name: TF
       Show Arrows: true
       Show Axes: true
       Show Names: true
       Tree:
-        {}
+        map:
+          odom:
+            base_footprint:
+              base_link:
+                front_wheel_link:
+                  {}
+                gyro_link:
+                  {}
+                left_cliff_sensor_link:
+                  {}
+                left_wheel_link:
+                  {}
+                leftfront_cliff_sensor_link:
+                  {}
+                right_cliff_sensor_link:
+                  {}
+                right_wheel_link:
+                  {}
+                rightfront_cliff_sensor_link:
+                  {}
+                wall_sensor_link:
+                  {}
+              laser:
+                {}
       Update Interval: 0
       Value: true
     - Alpha: 0.699999988079071
@@ -133,6 +183,55 @@ Visualization Manager:
         Expand Link Details: false
         Expand Tree: false
         Link Tree Style: Links in Alphabetic Order
+        base_footprint:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        base_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        front_wheel_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        gyro_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        left_cliff_sensor_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        left_wheel_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        leftfront_cliff_sensor_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        right_cliff_sensor_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        right_wheel_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        rightfront_cliff_sensor_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        wall_sensor_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
       Name: RobotModel
       Robot Description: robot_description
       TF Prefix: ""
@@ -235,25 +334,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 20.30911636352539
+      Distance: 9.137177467346191
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -0.5900976061820984
-        Y: 1.289176344871521
-        Z: -0.1454821676015854
+        X: 2.0226430892944336
+        Y: 0.37041911482810974
+        Z: -0.14643478393554688
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.5647963285446167
+      Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 4.7104034423828125
+      Yaw: 4.7104058265686035
     Saved: ~
 Window Geometry:
   Displays:
