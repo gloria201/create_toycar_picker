@@ -1,0 +1,5 @@
+<launch>
+  <node name="detect_toycar" pkg="detect_toycar" type="main.py" output="screen">
+    <rosparam file="$(find detect_toycar)/config/detect_params.yaml"  command="load"/>
+  </node>
+</launch>
