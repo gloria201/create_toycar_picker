@@ -1,0 +1,15 @@
+detect_interval: 3
+
+# detect model param
+detect:
+  conf_thres: 0.5
+  model_half: True
+  model_path: None
+  device: 'gpu' # 'gpu' or 'cpu'
+
+# camera param
+camera:
+  cam_id: 2
+  image_shape: (1280,720)
+  camera_fps: 30
+  camera_param_root: ''
