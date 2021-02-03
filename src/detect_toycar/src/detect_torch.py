@@ -1,4 +1,4 @@
-#!/usr/bin/python3  # need to edit
+#!/home/gloria/anaconda3/envs/py3_8_env/bin/python
 import os
 import time
 import numpy as np
@@ -157,7 +157,7 @@ def letterbox(img, new_shape=(640, 640), color=(114, 114, 114), auto=True, scale
     return img, ratio, (dw, dh)
 
 class ToyCar():
-    def __init__(self,model_path =None ,imgsz =640, conf_thres = 0.5,iou_thres = 0.3,model_half=False,device='gpu'):
+    def __init__(self,model_path =None ,imgsz =640, conf_thres = 0.3,iou_thres = 0.3,model_half=False,device='gpu'):
         if model_path ==None:
             model_path =os.path.dirname(__file__) + '/best.pt'
         self.imgsz = imgsz

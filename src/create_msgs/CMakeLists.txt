@@ -13,8 +13,6 @@ add_message_files(
   DefineSong.msg
   Mode.msg
   PlaySong.msg
-  toycar_info.msg
-  toycar_frame.msg
 )
 
 generate_messages(

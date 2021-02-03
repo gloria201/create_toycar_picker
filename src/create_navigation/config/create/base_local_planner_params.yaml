@@ -1,17 +1,16 @@
 TrajectoryPlannerROS:
 
 # Robot Configuration Parameters
-  max_vel_x: 0.15
-  min_vel_x: 0.05
-  max_vel_y: 0.0  # zero for a differential drive robot
-  min_vel_y: 0.0
+  max_vel_x: 0.2
+  min_vel_x: 0.04
+
   max_vel_theta:  1.0
   min_vel_theta: -1.0
-  min_in_place_vel_theta: 0.4
+  min_in_place_vel_theta: 0.1
 
-  acc_lim_x: 1.0
+  acc_lim_x: 0.01
   acc_lim_y: 0.0
-  acc_lim_theta: 0.5
+  acc_lim_theta: 0.1
 
   meter_scoring: true
 

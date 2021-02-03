@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<launch>
+
+  <!-- Run a static transform between /base_footprint and /laser   --> 
+   <node pkg="tf" type="static_transform_publisher" name="laser_broadcaster" 
+args="0 0 0.18 0 0 0 /base_footprint /base_scan 100" /> 
+
+ 
+
+  <!-- Start gmapping node -->  
+  <include file="$(find create_navigation)/launch/gmapping.launch" /> 
+
+  <!-- Start Rviz   --> 
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find create_navigation)/rviz/gmapping.rviz" />
+
+</launch>
