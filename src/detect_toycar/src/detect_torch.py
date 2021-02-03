@@ -8,7 +8,7 @@ import sys
 
 sys.path.append('../../yolov5')# need to edit
 from models.experimental import attempt_load
-from camera_model import CameraModel
+
 
 def box_iou(box1, box2):
     # https://github.com/pytorch/vision/blob/master/torchvision/ops/boxes.py

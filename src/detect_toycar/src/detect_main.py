@@ -1,10 +1,11 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
+import os
 import cv2
 import rospy
 from detect_torch import ToyCar
-from camera_model import CameraModel
+from camera.camera_model import CameraModel
 from create_msgs.msg import toycar_info, toycar_frame
 from std_msgs.msg import Header
 
@@ -13,13 +14,16 @@ def main():
 
     detect_param = rospy.get_param("~detect")
     camera_param = rospy.get_param("~camera")
+    camera_param_root = rospy.get_param("~camera_param_root")
 
     detect_interval = rospy.get_param("~detect_interval")
 
     pub = rospy.Publisher('toycar_info', toycar_info, queue_size=1)
-    cam_model = CameraModel(camera_param['camera_param_root'])
+
+    cam_param_root = os.path.join(camera_param_root,camera_param['far_camera']['path'])
+    cam_model = CameraModel(cam_param_root)
     detect = ToyCar(*detect_param)
-    cap = cv2.VideoCapture(camera_param['cam_id'])
+    cap = cv2.VideoCapture(camera_param['far_camera']['dev'])
     cap.set(5, camera_param['camera_fps'])
     cap.set(3, camera_param['image_shape'][0])
     cap.set(4, camera_param['image_shape'][1])
