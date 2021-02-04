@@ -8,8 +8,8 @@
     <rosparam file="$(find create_navigation)/config/create/local_costmap_params.yaml" command="load" />
     <rosparam file="$(find create_navigation)/config/create/global_costmap_params.yaml" command="load" />
 
-    <rosparam file="$(find create_navigation)/config/create/move_base_params.yaml" command="load" />
-    <rosparam file="$(find create_navigation)/config/create/dwa_local_planner_params.yaml" />
+   <rosparam file="$(find create_navigation)/config/create/move_base_params.yaml" command="load" /> 
+    <rosparam file="$(find create_navigation)/config/create/dwa_local_planner_params.yaml" command="load"  />
   </node>   
 
 
