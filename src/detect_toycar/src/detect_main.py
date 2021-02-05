@@ -25,8 +25,8 @@ def main():
     detect = ToyCar(*detect_param)
     cap = cv2.VideoCapture(camera_param['far_camera']['dev'])
     cap.set(5, camera_param['camera_fps'])
-    cap.set(3, camera_param['image_shape'][0])
-    cap.set(4, camera_param['image_shape'][1])
+    cap.set(3, int(camera_param['image_shape'][0]))
+    cap.set(4, int(camera_param['image_shape'][1]))
     print('img height :', cap.get(3))
     print('img width:', cap.get(4))
     print('img fps:', cap.get(5))
@@ -34,7 +34,8 @@ def main():
     cur_index = 0
     while 1:
         ret, img = cap.read()
-        if not ret:continue
+        if not ret:
+            continue
         # 间隔检测
         cur_index +=1
         if cur_index%detect_interval!=0:

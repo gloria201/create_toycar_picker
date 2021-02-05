@@ -9,12 +9,12 @@ detect:
 
 # camera param
 camera:
-  image_shape: (1280,720)
+  image_shape: [1280,720]
   camera_fps: 30
   # camera_dev  and camera_param_root
   far_camera:
-    dev: '2'
+    dev: 0
     path: 'camera1'
   near_camera:
-    dev: '1'
+    dev: 4
     path: 'camera2'

@@ -1,4 +1,5 @@
 build
 devel
 .idea
+.catkin_workspace
 *pyc
