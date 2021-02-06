@@ -1,4 +1,4 @@
-#!/home/zjrobot/anaconda3/envs/python3/bin/python
+#!/usr/bin/python
 # -*- coding: utf-8 -*-
 '''
 demo: 实现二维码的作为目标,利用movebase导航过去
@@ -44,6 +44,8 @@ def detect_aruco(cap,aruco_id = 0):
             # 4*2
             corners = corners[ids[0].tolist().index(aruco_id)].squeeze()
             corners = corners.mean(axis=0)
+            cv2.imshow('FIND ARUCO',img)
+            cv2.waitKey(1)
             print('Find Aruco Point: ',corners)
             return corners
         cv2.imshow('FIND ARUCO',img)
@@ -113,8 +115,8 @@ def mark(pos):
     marker = Marker()
 
     # 指定Marker的参考框架
-    marker.header.frame_id = "/map"
-
+    marker.header.frame_id = "/laser"
+    marker.header.seq = 2.2
     # 时间戳
     marker.header.stamp = rospy.Time.now()
 
@@ -136,8 +138,12 @@ def mark(pos):
     marker.action = Marker.ADD
 
     # Marker的位置姿态
-    marker.pose.position.x = pos[0]
-    marker.pose.position.y = pos[1]
+    if len(pos)==0:
+        marker.pose.position.x = 0
+        marker.pose.position.y = 1
+    else:
+        marker.pose.position.x = pos[0]
+        marker.pose.position.y = pos[1]
     marker.pose.position.z = 0.1
     marker.pose.orientation.x = 0.0
     marker.pose.orientation.y = 0.0
@@ -177,11 +183,12 @@ def test_aruco_location():
     print('img fps:', cap.get(5))
 
     marker_pub = rospy.Publisher("/cube", Marker, queue_size=10)
-    while 1:
+    while not rospy.is_shutdown() :
         point = detect_aruco(cap)
         # pixel to laser
-        laser_p = cam_model.cam_world2laser([point])[0]
+        laser_p = cam_model.run([[point[0],point[1],point[0],point[1]]] )[0]
         # laser to map
+        print('laser', laser_p)
         marker = mark(laser_p)
         marker_pub.publish(marker)
         time.sleep(0.3)

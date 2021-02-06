@@ -2,9 +2,9 @@ detect_interval: 3
 
 # detect model param
 detect:
-  conf_thres: 0.5
+  conf_thres: 0.3
   model_half: True
-  model_path: None
+  model_path: '/home/gloria/Documents/src/detect_toycar/src/best.pt'
   device: 'gpu' # 'gpu' or 'cpu'
 
 # camera param
@@ -13,8 +13,8 @@ camera:
   camera_fps: 30
   # camera_dev  and camera_param_root
   far_camera:
-    dev: 0
+    dev: 4
     path: 'camera1'
   near_camera:
-    dev: 4
+    dev: 2
     path: 'camera2'

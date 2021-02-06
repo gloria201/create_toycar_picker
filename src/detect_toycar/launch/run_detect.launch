@@ -1,6 +1,6 @@
 <launch>
     <arg name="camera_param_root" value="$(find detect_toycar)/params"/>
-    <node name="detect_toycar" pkg="detect_toycar" type="main.py" output="screen">
+    <node name="detect_toycar" pkg="detect_toycar" type="detect_main.py" output="screen"/>
     <rosparam file="$(find detect_toycar)/config/detect_params.yaml"  command="load"/>
     <param name="camera_param_root" value="$(arg camera_param_root)"/>
   </node>

@@ -26,16 +26,18 @@ class CameraModel():
 
     def run(self,boxes):
         positions = []
-        for box in boxes:
-            point = self.pixel2cam_world([[box[0],box[3]],[box[2],box[3]]])
-            positions.append(self.cam_world2laser(point))
+        # for box in boxes:
+        box = boxes[0]
+        point = self.pixel2cam_world([[box[0],box[3]],[box[2],box[3]]])
+        print('pooint',point)
+        positions=self.cam_world2laser(point)
         return positions
 
     def cam_world2laser(self,points):
         laser_pos = []
         for p in points:
-            laser_p = self.R_TLC.dot(np.array(p).reshape(3,1)) + self.T_TLC
-            laser_pos+=laser_p.flatten().tolist()
+            laser_p = self.R_TLC.dot(np.array(p).reshape(3,1)) + self.T_TLC.reshape(3,1)
+            laser_pos.append(laser_p.flatten().tolist())
         return laser_pos
 
     def pixel2cam_world(self, points):
@@ -46,7 +48,7 @@ class CameraModel():
         Z_w = 0
         for point in points:
             M1 = Rvec_inv.dot(point).flatten()
-            M2 = Rvec_inv.dot(self.rvec.reshape(3, 1)).flatten()
+            M2 = Rvec_inv.dot(self.tvec.reshape(3, 1)).flatten()
             Zc = (Z_w + M2[2]) / M1[2]
             x = (Zc * M1[0] - M2[0])
             y = (Zc * M1[1] - M2[1])
