@@ -183,8 +183,7 @@ def test_aruco_location():
 
     marker_pub = rospy.Publisher("/cube", Marker, queue_size=10)
     while not rospy.is_shutdown() :
-        # point = detect_aruco(cap)
-        point = [650,660]
+        point = detect_aruco(cap)
         # pixel to laser
         laser_p = cam_model.run([[point]])[0][0]
         print(laser_p)
