@@ -115,8 +115,7 @@ def mark(pos):
     marker = Marker()
 
     # 指定Marker的参考框架
-    marker.header.frame_id = "/laser"
-    marker.header.seq = 2.2
+    marker.header.frame_id = "/map"
     # 时间戳
     marker.header.stamp = rospy.Time.now()
 
@@ -184,11 +183,12 @@ def test_aruco_location():
 
     marker_pub = rospy.Publisher("/cube", Marker, queue_size=10)
     while not rospy.is_shutdown() :
-        point = detect_aruco(cap)
+        # point = detect_aruco(cap)
+        point = [650,660]
         # pixel to laser
-        laser_p = cam_model.run([[point[0],point[1],point[0],point[1]]] )[0]
+        laser_p = cam_model.run([[point]])[0][0]
+        print(laser_p)
         # laser to map
-        print('laser', laser_p)
         marker = mark(laser_p)
         marker_pub.publish(marker)
         time.sleep(0.3)

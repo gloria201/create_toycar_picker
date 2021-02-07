@@ -4,6 +4,7 @@
 TODO 近处没有激光标定的时候
 '''
 import os
+import cv2
 import pickle
 import numpy as np
 
@@ -24,13 +25,15 @@ class CameraModel():
             self.R_TLC = np.linalg.inv(R_TCL)
             self.T_TLC = -np.linalg.inv(R_TCL).dot(T_TCL.reshape(3,1))
 
-    def run(self,boxes):
-        positions = []
-        # for box in boxes:
-        box = boxes[0]
-        point = self.pixel2cam_world([[box[0],box[3]],[box[2],box[3]]])
-        print('pooint',point)
-        positions=self.cam_world2laser(point)
+    def run(self,points):
+        points = np.array(points).astype(np.float32)
+        points = cv2.undistortPoints(points, self.K, self.D, R=np.eye(3))
+        shape = points.shape
+        points = points.reshape(-1,2)
+
+        world_point = self.pixel2cam_world(points)
+        positions = self.cam_world2laser(world_point)
+        positions = np.array(positions).reshape(shape[0],shape[1],3).tolist()
         return positions
 
     def cam_world2laser(self,points):
@@ -41,7 +44,6 @@ class CameraModel():
         return laser_pos
 
     def pixel2cam_world(self, points):
-        points = np.array(points)
         points = np.hstack([points, np.ones((points.shape[0], 1))])
         world_points = []
         Rvec_inv = np.linalg.inv(self.rvec)
