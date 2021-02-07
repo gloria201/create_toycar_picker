@@ -42,7 +42,7 @@ def detect_aruco(cap,aruco_id = 0):
                                                               parameters=parameters)
         if ids is not None and aruco_id in ids:
             # 4*2
-            corners = corners[ids[0].tolist().index(aruco_id)].squeeze()
+            corners = corners[ids.flatten().tolist().index(aruco_id)].squeeze()
             corners = corners.mean(axis=0)
             cv2.imshow('FIND ARUCO',img)
             cv2.waitKey(1)
