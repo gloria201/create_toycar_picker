@@ -16,7 +16,7 @@ args="0 0 0.18 0 0 0 /base_footprint /base_scan 10" />
   <include file="$(find create_navigation)/launch/amcl.launch" />
 
   <!-- Start Rviz   -->
-  <node name="rviz" pkg="rviz" type="rviz" />
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find create_navigation)/rviz/sim.rviz"  />
 
     
 </launch>
