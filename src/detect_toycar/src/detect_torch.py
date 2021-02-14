@@ -214,8 +214,10 @@ def test_video():
         ret, img = cap.read()
         if not ret:break
         img = cv2.resize(img,(640,320))
+        torch.cuda.synchronize()
         st = time.time()
         box,conf = detect.run(img)
+        torch.cuda.synchronize()
         print((time.time()-st))
         for b in box:
             cv2.rectangle(img, (int(b[0]), int(b[1])), (int(b[2]), int(b[3])), (0, 254, 0), 1)
