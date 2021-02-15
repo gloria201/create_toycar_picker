@@ -33,7 +33,7 @@ def main():
     print('img fps:', cap.get(5))
 
     cur_index = 0
-    while 1:
+    while not rospy.is_shutdown():
         ret, img = cap.read()
         if not ret:
             continue
@@ -43,7 +43,16 @@ def main():
             continue
         box,conf =detect.run(img)
         points = [[[b[0],b[3]],[b[2],b[3]]] for b in box]
-        pos = cam_model.run(points)
+
+        for b in box:
+            cv2.rectangle(img, (int(b[0]), int(b[1])), (int(b[2]), int(b[3])), (0, 254, 0), 1)
+        cv2.imshow('debug', img)
+        cv2.waitKey(1)
+
+        if len(box) == 0:
+            pos = []
+        else:
+            pos = cam_model.run(points)
         header = Header(cur_index, rospy.Time.now(), 'laser')
 
         '''发布消息,每一帧,多个物体的检测框,置信度,每个物体两个下边缘点,在激光坐标系的位置'''
@@ -73,7 +82,7 @@ def test():
     print('img fps:', cap.get(5))
 
     cur_index = 0
-    while 1:
+    while not rospy.is_shutdown():
         ret, img = cap.read()
         if not ret:
             continue
@@ -82,10 +91,17 @@ def test():
         if cur_index % detect_interval != 0:
             continue
         box, conf = detect.run(img)
-        points = [[[b[0], b[3]], [b[2], b[3]]] for b in box]
-        pos = cam_model.run(points)
 
-        marker = mark(pos[0])
+        for b in box:
+            cv2.rectangle(img, (int(b[0]), int(b[1])), (int(b[2]), int(b[3])), (0, 254, 0), 1)
+        cv2.imshow('debug', img)
+        cv2.waitKey(1)
+
+        if len(box) ==0 :
+            continue
+        points = [[[b[0], b[3]], [b[2], b[3]]] for b in box]
+        pos = cam_model.run(points)[0][0]
+        marker = mark(pos)
         marker_pub.publish(marker)
 
 def mark(pos):
