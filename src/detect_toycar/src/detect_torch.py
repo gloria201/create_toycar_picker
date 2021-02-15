@@ -6,7 +6,7 @@ import cv2
 import torch
 import sys
 
-sys.path.append('../../yolov5')# need to edit
+sys.path.append('/home/gloria/catkin_ws/src/yolov5')# need to edit
 from models.experimental import attempt_load
 
 

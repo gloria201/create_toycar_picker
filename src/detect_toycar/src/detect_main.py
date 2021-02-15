@@ -6,8 +6,9 @@ import cv2
 import rospy
 from detect_torch import ToyCar
 from camera.camera_model import CameraModel
-from create_msgs.msg import toycar_info, toycar_frame
+#from create_msgs.msg import toycar_info, toycar_frame
 from std_msgs.msg import Header
+from visualization_msgs.msg import Marker
 
 def main():
     rospy.init_node("detect_toycar")
@@ -62,7 +63,7 @@ def test():
 
     cam_param_root = os.path.join(camera_param_root, camera_param['far_camera']['path'])
     cam_model = CameraModel(cam_param_root)
-    detect = ToyCar(*detect_param)
+    detect = ToyCar(**detect_param)
     cap = cv2.VideoCapture(camera_param['far_camera']['dev'])
     cap.set(5, camera_param['camera_fps'])
     cap.set(3, int(camera_param['image_shape'][0]))

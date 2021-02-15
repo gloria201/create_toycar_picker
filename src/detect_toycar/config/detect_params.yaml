@@ -4,7 +4,7 @@ detect_interval: 3
 detect:
   conf_thres: 0.3
   model_half: True
-  model_path: '/home/gloria/Documents/src/detect_toycar/src/best.pt'
+  model_path: '/home/gloria/catkin_ws/src/detect_toycar/src/best.pt'
   device: 'gpu' # 'gpu' or 'cpu'
 
 # camera param
