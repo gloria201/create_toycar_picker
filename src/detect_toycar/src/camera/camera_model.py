@@ -27,12 +27,17 @@ class CameraModel():
 
     def run(self,points):
         points = np.array(points).astype(np.float32)
-        points = cv2.undistortPoints(points, self.K, self.D, R=np.eye(3))
         shape = points.shape
-        points = points.reshape(-1,2)
+        points = points.reshape(-1, 1, 2)
+        points = cv2.undistortPoints(points, self.K, self.D, R=np.eye(3))
+        points = points.reshape(-1, 2)
 
         world_point = self.pixel2cam_world(points)
+        p = np.linalg.norm(world_point[:,:2],axis =1)
+        print('camera distance: ',p)
         positions = self.cam_world2laser(world_point)
+        p = np.linalg.norm(np.array(positions)[:, :2], axis=1)
+        print('laser  distance: ', p)
         positions = np.array(positions).reshape(shape[0],shape[1],3).tolist()
         return positions
 
