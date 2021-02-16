@@ -218,9 +218,9 @@ def test_video():
         st = time.time()
         box,conf = detect.run(img)
         torch.cuda.synchronize()
-        print((time.time()-st))
         for b in box:
             cv2.rectangle(img, (int(b[0]), int(b[1])), (int(b[2]), int(b[3])), (0, 254, 0), 1)
+        print((time.time() - st))
         cv2.imshow('debug', img)
         cv2.waitKey(1)
 

@@ -91,7 +91,6 @@ def test():
         if cur_index % detect_interval != 0:
             continue
         box, conf = detect.run(img)
-
         for b in box:
             cv2.rectangle(img, (int(b[0]), int(b[1])), (int(b[2]), int(b[3])), (0, 254, 0), 1)
         cv2.imshow('debug', img)
@@ -99,12 +98,13 @@ def test():
 
         if len(box) ==0 :
             continue
-        points = [[[b[0], b[3]], [b[2], b[3]]] for b in box]
-        pos = cam_model.run(points)[0][0]
-        marker = mark(pos)
-        marker_pub.publish(marker)
+        points = [[[(b[0]+b[2])/2, b[3]]] for b in box]
+        pos = cam_model.run(points)
+        for i,p in enumerate(pos):
+            marker = mark(p[0],ids=i)
+            marker_pub.publish(marker)
 
-def mark(pos):
+def mark(pos,ids=0):
     marker = Marker()
 
     # 指定Marker的参考框架
@@ -116,7 +116,7 @@ def mark(pos):
     marker.ns = "basic_shapes"
 
     # Marker的id号
-    marker.id = 0
+    marker.id = ids
 
     # Marker的类型，有ARROW，CUBE等
     marker.type = Marker.CYLINDER
