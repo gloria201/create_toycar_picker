@@ -20,7 +20,7 @@ def main():
         except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
             continue
         header = Header(cur_index, rospy.Time.now(), 'laser2map')
-        R = quaternion_matrix(rot)
+        R = quaternion_matrix(rot)[:3,:3]
         pub.publish(laser2map(header=header,R=R.flatten().tolist(),T=trans))
         cur_index += 1
         r.sleep()

@@ -6,7 +6,7 @@ import cv2
 import torch
 import sys
 
-sys.path.append('/home/hushunda/ROS_project/ros_ws/yolov5')# need to edit
+sys.path.append('/home/gloria/catkin_ws/src/yolov5')# need to edit
 from models.experimental import attempt_load
 
 
@@ -160,7 +160,7 @@ class ToyCar():
     def __init__(self,model_path =None ,imgsz =640, conf_thres = 0.3,iou_thres = 0.3,model_half=False,device='gpu'):
         if model_path ==None:
             model_path =os.path.dirname(__file__) + 'model/best.pt'
-        elif model_path.startswith(('/'):
+        elif model_path.startswith('/'):
             assert os.path.exists(model_path)
         else:
             model_path = os.path.join(os.path.dirname(__file__),model_path)
@@ -177,6 +177,8 @@ class ToyCar():
             self.model.half()  # to FP16
 
     def run(self,img):
+        if img is None:
+            return [],[]
         img_size = img.shape[:2]
         img = self.precessing(img)
         img_rs = img.shape[2:]

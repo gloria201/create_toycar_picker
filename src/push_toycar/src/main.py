@@ -1,5 +1,3 @@
-#!/home/hushunda/anaconda3/envs/py36/bin/python
-
 #/home/gloria/anaconda3/envs/py3_8_env/bin/python
 # -*- coding: utf-8 -*-
 
@@ -9,14 +7,14 @@ import rospy
 import threading
 import time
 import numpy as np
-import Queue
+import queue
 from detect_torch import ToyCar
 from camera.camera_model import CameraModel
 from camera.camera_capture import CameraCap
 from create_msgs.msg import laser2map
 from std_msgs.msg import Header
 from visualization_msgs.msg import Marker
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist, Vector3
 
 import actionlib
 from actionlib_msgs.msg import GoalStatus
@@ -31,65 +29,45 @@ def main():
     detect_param = rospy.get_param("~detect")
     camera_param = rospy.get_param("~camera")
     camera_param_root = rospy.get_param("~camera_param_root")
-
+    docking_toycar_params = rospy.get_param("~docking_toycar")
+    find_toycar_params = rospy.get_param("~find_toycar")
     detect_interval = rospy.get_param("~detect_interval")
-    pub = rospy.Publisher('toycar_info', toycar_frame, queue_size=1)
-
-    cam_param_root = os.path.join(camera_param_root,camera_param['far_camera']['path'])
+    final_goal = rospy.get_param("~final_goal")
 
     far_cap = CameraCap('far_camera',camera_param,camera_param_root)
     near_cap = CameraCap('near_camera',camera_param,camera_param_root)
 
     detect = ToyCar(**detect_param)
 
-    cur_index = 0
-    while not rospy.is_shutdown():
-        ret, img = cap.read()
-        if not ret:
-            continue
-        # 间隔检测
-        cur_index +=1
-        if cur_index%detect_interval!=0:
-            cv2.imshow('debug', img)
-            cv2.waitKey(1)
-            continue
-        box,conf =detect.run(img)
-        points = [[[b[0],b[3]],[b[2],b[3]]] for b in box]
-
-        for b in box:
-            cv2.rectangle(img, (int(b[0]), int(b[1])), (int(b[2]), int(b[3])), (0, 254, 0), 1)
-        cv2.imshow('debug', img)
-        cv2.waitKey(1)
-
-        if len(box) == 0:
-            pos = []
-        else:
-            pos = cam_model.run(points)
-        header = Header(cur_index, rospy.Time.now(), 'laser')
-
-        '''发布消息,每一帧,多个物体的检测框,置信度,每个物体两个下边缘点,在激光坐标系的位置'''
-        pub_info = [toycar(box=b,confidence=c,position=[*p[0],*p[1]]) for b,c,p in zip(box,conf,pos)]
-        pub.publish(toycar_frame(header=header,toycar_info=pub_info))
-
+    push_toycar(detect,far_cap,near_cap,find_toycar_params,docking_toycar_params,final_goal)
 
 class push_toycar():
-    def __init__(self,detect, far_cap, near_cap,patrol_route):
+    def __init__(self,detect, far_cap, near_cap,find_toycar_params,docking_toycar_params,final_goal):
         self.detect = detect
         self.far_cap = far_cap
         self.near_cap = near_cap
-        self.patrol_route = patrol_route
+        self.find_toycar_params = find_toycar_params
+        self.final_goal = final_goal
         #
-        self.RT = Queue.Queue(10)
+        self.RT = queue.Queue(10)
 
         self.move_base = actionlib.SimpleActionClient("/move_base", MoveBaseAction)
         self.move_base.wait_for_server(rospy.Duration(5))
 
         self.cmd_vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
 
+        self.docking_toycar_params = docking_toycar_params
+
         threads = [threading.Thread(target=self.listen_RT)]
         threads.append(threading.Thread(target=self.run))
-        for t in threads:
-            t.start()
+        try:
+            for t in threads:
+                t.start()
+        finally:
+            twist = Twist()
+            twist.linear = Vector3(0, 0, 0)
+            twist.angular = Vector3(0, 0, 0)
+            self.cmd_vel_pub.publish(twist)
         # for t in threads:
         #     t.join()
 
@@ -102,7 +80,7 @@ class push_toycar():
             # 机器人小车对接
             self.docking_toycar()
             # 将小车推送到指定地点
-            self.push2target()
+            # self.push2target()
 
     def callback(self,data,q):
         q.put(data)
@@ -113,27 +91,64 @@ class push_toycar():
         rospy.spin()
 
     def move(self,pos,max_time = 60):
-        # todo 计算合适的位置
-        #      下面摄像头检测到小车
+        '''
+        得到了toycar的位置
+           移动到距离小车t_dis距离的位置并且面朝toycar,并且满足近摄像头检测到小车
+        '''
 
         self.move_base.cancel_goal()
         goal = MoveBaseGoal()
         header = Header(999, rospy.Time.now(), 'map')
         goal.target_pose.header = header
-        goal.target_pose.pose = Pose(Point(pos[0], pos[1], 0), Quaternion(0, 0, 0, 1))
+
+        RT = self.RT.get()
+        T_= RT.T
+        t_dis = 0.35
+        dis = ((T_[0]-pos[0])**2+(T_[1]-pos[1])**2)**0.5
+        # 移动到的位置一定大于当前与目标的位置
+        assert dis>t_dis
+        ratio = t_dis/dis
+        move_pose_position = [(T_[0]-pos[0])*ratio+pos[0],(T_[1]-pos[1])*ratio+pos[1],0]
+
+        theta = np.arccos((pos[0]-T_[0])/dis)
+        if pos[1]-T_[1]<0:
+            theta = 360-theta
+        r = R.from_euler('zxy',(theta,0,0))
+        move_pose_orientation = r.as_quat()
+
+
+        goal = MoveBaseGoal()
+        header = Header(888, rospy.Time.now(), 'map')
+        goal.target_pose.header = header
+        goal.target_pose.pose = Pose(Point(*move_pose_position), Quaternion(*move_pose_orientation))
         self.move_base.send_goal(goal)
         t = 0
         while not rospy.is_shutdown() and t<max_time:
 
             state = self.move_base.get_state()
             if state == GoalStatus.SUCCEEDED:
-                return
+                break
             t+=1
             time.sleep(1)
 
+        # 近距离的相机检测小车确认
+        img = self.near_cap.read()
+        box, conf = self.detect.run(img)
+        if len(box)>0:
+            return True
+        else:
+            rospy.logerr(' Near Camera No Find Toycar ')
+            rospy.logerr(' maybe toycar position is wrong ')
+
     # todo 需要多帧确认
-    # todo 确认后，停下
+    # todo 确认后，停下, 调整成朝向目标
     def find_toycar(self):
+        '''
+        按照既定的路线移动，移动过程中寻找小车
+            首先旋转一圈，
+            再按照既定路线移动，配置中patrol_route
+            移动一圈都没有找到，后报错，结束
+        '''
         # 找到小车
         # stage 1 旋转找车
         cur_turn = 0.01
@@ -144,15 +159,16 @@ class push_toycar():
 
         while not rospy.is_shutdown():
             twist = Twist()
-            twist.linear = [0,0,0]
+            twist.linear = Vector3(0,0,0)
             if cur_turn>=max_turn:
-                twist.angular = [0, 0, cur_turn]
+                twist.angular = Vector3(0, 0, cur_turn)
             else:
-                twist.angular = [0, 0, cur_turn + 0.01]
+                cur_turn = cur_turn + 0.01
+                twist.angular = Vector3(0, 0, cur_turn)
 
             # 检测
             img = self.far_cap.read()
-            box,conf = self.detect(img)
+            box,conf = self.detect.run(img)
             #
             RT = self.RT.get()
             if len(box)>0:
@@ -163,23 +179,41 @@ class push_toycar():
                 map_pos = [R_.dot(p)+T_ for p in np.array(pos).reshape(-1,3,1)]
                 return map_pos
             cur_theta = R.from_matrix(np.array(RT.R).reshape(3,3)).as_euler('zxy',degrees=True)
-            if cur_theta - init_theta>350:
+
+
+            if cur_theta[0] >=(init_theta[0]-5) and cur_theta[0] - init_theta[0]>320:
+                break
+            elif cur_theta[0] <(init_theta[0]-5) and (180- init_theta[0])+(cur_theta[0]+180)>320:
                 break
             self.cmd_vel_pub.publish(twist)
         # 停下
         while cur_turn>0:
             twist = Twist()
-            twist.linear = [0, 0, 0]
+            twist.linear = Vector3(0, 0, 0)
             cur_turn = min(cur_turn - 0.01, 0)
-            twist.angular = [0, 0, cur_turn]
+            twist.angular = Vector3(0, 0, cur_turn)
+
+            # 检测
+            img = self.far_cap.read()
+            box,conf = self.detect.run(img)
+            #
+            RT = self.RT.get()
+            if len(box)>0:
+                points = [[[(b[0] + b[2]) / 2, b[3]]] for b in box]
+                pos = self.far_cap.get_position(points)
+                R_ = np.array(RT.R).reshape(3,3)
+                T_ = np.array(RT.T).reshape(3,1)
+                map_pos = [R_.dot(p)+T_ for p in np.array(pos).reshape(-1,3,1)]
+                return map_pos
+
             self.cmd_vel_pub.publish(twist)
         # stage 2 按照规定的路线找车
-        for idx,tp in enumerate(self.patrol_route):
+        for idx,tpose in enumerate(self.find_toycar_params['patrol_route']):
             self.move_base.cancel_goal()
             goal = MoveBaseGoal()
             header = Header(idx, rospy.Time.now(), 'map')
             goal.target_pose.header = header
-            goal.target_pose.pose = Pose(Point(tp[0], tp[1], 0), Quaternion(0, 0, 0, 1))
+            goal.target_pose.pose = Pose(Point(*tpose[:3]), Quaternion(*tpose[3:]))
             self.move_base.send_goal(goal)
 
             while not rospy.is_shutdown():
@@ -192,7 +226,7 @@ class push_toycar():
 
                 # 检测
                 img = self.far_cap.read()
-                box, conf = self.detect(img)
+                box, conf = self.detect.run(img)
                 #
                 RT = self.RT.get()
                 if len(box) > 0:
@@ -203,13 +237,81 @@ class push_toycar():
                     map_pos = [R_.dot(p) + T_ for p in np.array(pos).reshape(-1, 3, 1)]
                     return map_pos
 
+        rospy.logerr(' No Find Toycar ')
+
     def docking_toycar(self):
-        pass
+        '''
+        TODO: 改成pid
+        近距离的相机已经能看到目标了,保证只有一个目标
+            控制机器人和小车链接
+        '''
+
+        cur_turn = 0.05
+        max_turn = 0.1
+        cur_x = 0.05
+        max_x = 0.1
+
+        min_y = min(self.docking_toycar_params['left_port'][1],self.docking_toycar_params['left_port'][1])
+        left_x = self.docking_toycar_params['left_port'][0]
+        right_x = self.docking_toycar_params['right_port'][0]
+        enter_y = self.docking_toycar_params['enter_port']
+
+        while not rospy.is_shutdown():
+            twist = Twist()
+            twist.angular = Vector3(0, 0, 0)
+            twist.linear = Vector3(0, 0, 0)
+
+            img = self.near_cap.read()
+            box, conf = self.detect.run(img)
+            if len(box)>1:
+                rospy.logerr('docking_toycar: more than one toycar')
+                assert NotImplementedError
+            elif len(box)==0:
+                rospy.logerr('docking_toycar: No Find toycar')
+                assert NotImplementedError
+
+            if box[3]<min_y:
+                if box[2]>right_x:
+                    # 左转
+                    twist.angular = [0, 0, -cur_turn]
+                elif box[0]<right_x:
+                    #　右转
+                    twist.angular = [0, 0, cur_turn]
+                else:
+                    # 前进
+                    twist.linear = [cur_x, 0, 0]
+            else:
+
+                if box[2]<right_x and box[0]>left_x:
+                    if box[1]>enter_y:
+                        # 表示已经完成
+                        self.cmd_vel_pub.publish(twist)
+                        return True
+                    else:
+                        # 前进
+                        twist.linear = [cur_x, 0, 0]
+                # 出现这种情况，应该哪里没有处理好
+                rospy.logwarn('docking_toycar: No Find toycar')
+                # 后退
+                twist.linear = [-cur_x, 0, 0]
+
+            self.cmd_vel_pub.publish(twist)
 
     def push2target(self):
         pass
 
+class target_check():
+    def __init__(self,max_time= 1, max_distance = 0.1, min_target_times=3):
+        self.max_time = max_time # 最大间隔时间
+        self.min_target_times = min_target_times # 最小检测次数
+        self.max_distance = max_distance # 最大间隔距离
+        self.target_info = []
 
+    def update(self,info):
+        pass
+
+    def check(self):
+        pass
 
 def test():
     rospy.init_node("detect_toycar")
@@ -310,5 +412,5 @@ def mark(pos,ids=0):
     return marker
 
 if __name__ == '__main__':
-    # main()
-    test()
+    main()
+    # test()

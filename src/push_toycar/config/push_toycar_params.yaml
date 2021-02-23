@@ -1,14 +1,21 @@
 detect_interval: 3
 
+
+final_goal: []
+
 # find toycar
 find_toycar:
-  patrol_route: [[],[],[],[],[],[]]
+  patrol_route: [[-4,1,0,0,0,0,1],[-1,1,0,0,0,0.713,0.7],[-1,4,0,0,0,1,0],[-4,4,0,0,0,-0.737,0.68]]
 
+docking_toycar:
+  left_port: []
+  right_port: []
+  enter_port: []
 # detect model param
 detect:
   conf_thres: 0.3
   model_half: True
-  model_path: 'model/best.pt'
+  model_path: '../model/best.pt'
   device: 'gpu' # 'gpu' or 'cpu'
 
 # camera param

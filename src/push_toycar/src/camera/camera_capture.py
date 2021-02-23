@@ -17,7 +17,7 @@ class CameraCap():
         self.cap = cap
 
     def read(self):
-        return self.cap.read()
+        return self.cap.read()[1]
 
     def get_position(self,points):
         if len(points) == 0:

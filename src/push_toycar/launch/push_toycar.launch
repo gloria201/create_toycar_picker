@@ -8,6 +8,6 @@
     </node>
 
 
-    <node name="push_toycar" pkg="push_toycar" type="tf2topic.py" output="screen">
+    <node name="laser2map" pkg="push_toycar" type="tf2topic.py" output="screen">
     </node>
 </launch>
