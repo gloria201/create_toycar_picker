@@ -6,7 +6,7 @@ import cv2
 import torch
 import sys
 
-sys.path.append('/home/gloria/catkin_ws/src/yolov5')# need to edit
+sys.path.append('/home/hushunda/ROS_project/ros_ws/yolov5')# need to edit
 from models.experimental import attempt_load
 
 
@@ -213,9 +213,10 @@ def test_video():
     while 1:
         ret, img = cap.read()
         if not ret:break
-        img = cv2.resize(img,(640,320))
         torch.cuda.synchronize()
         st = time.time()
+        img = cv2.resize(img,(640,320))
+
         box,conf = detect.run(img)
         torch.cuda.synchronize()
         for b in box:

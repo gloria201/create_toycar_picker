@@ -33,11 +33,11 @@ class CameraModel():
         points = points.reshape(-1, 2)
 
         world_point = self.pixel2cam_world(points)
-        p = np.linalg.norm(world_point[:,:2],axis =1)
-        print('camera distance: ',p)
+        #p = np.linalg.norm(world_point[:,:2],axis =1)
+        #print('camera distance: ',p)
         positions = self.cam_world2laser(world_point)
-        p = np.linalg.norm(np.array(positions)[:, :2], axis=1)
-        print('laser  distance: ', p)
+        #p = np.linalg.norm(np.array(positions)[:, :2], axis=1)
+        #print('laser  distance: ', p)
         positions = np.array(positions).reshape(shape[0],shape[1],3).tolist()
         return positions
 

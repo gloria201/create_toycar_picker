@@ -1,5 +1,9 @@
 detect_interval: 3
 
+# find toycar
+find_toycar:
+  patrol_route: [[],[],[],[],[],[]]
+
 # detect model param
 detect:
   conf_thres: 0.3
