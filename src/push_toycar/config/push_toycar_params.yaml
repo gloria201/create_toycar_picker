@@ -1,0 +1,24 @@
+detect_interval: 3
+
+# find toycar
+find_toycar:
+  patrol_route: [[],[],[],[],[],[]]
+
+# detect model param
+detect:
+  conf_thres: 0.3
+  model_half: True
+  model_path: 'model/best.pt'
+  device: 'gpu' # 'gpu' or 'cpu'
+
+# camera param
+camera:
+  image_shape: [1280,720]
+  camera_fps: 30
+  # camera_dev  and camera_param_root
+  far_camera:
+    dev: 4
+    path: 'camera1'
+  near_camera:
+    dev: 2
+    path: 'camera2'
