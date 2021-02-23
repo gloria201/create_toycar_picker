@@ -58,6 +58,9 @@ class push_toycar():
 
         self.docking_toycar_params = docking_toycar_params
 
+        self.window_name = 'test_windows'
+        cv2.namedWindow(self.window_name, 0)
+
         threads = [threading.Thread(target=self.listen_RT)]
         threads.append(threading.Thread(target=self.run))
         try:
@@ -169,6 +172,10 @@ class push_toycar():
             # 检测
             img = self.far_cap.read()
             box,conf = self.detect.run(img)
+            for b in box:
+                cv2.rectangle(img, (int(b[0]), int(b[1])), (int(b[2]), int(b[3])), (0, 254, 0), 1)
+            cv2.imshow(self.window_name, img)
+            cv2.waitKey(1)
             #
             RT = self.RT.get()
             if len(box)>0:
@@ -196,6 +203,10 @@ class push_toycar():
             # 检测
             img = self.far_cap.read()
             box,conf = self.detect.run(img)
+            for b in box:
+                cv2.rectangle(img, (int(b[0]), int(b[1])), (int(b[2]), int(b[3])), (0, 254, 0), 1)
+            cv2.imshow(self.window_name, img)
+            cv2.waitKey(1)
             #
             RT = self.RT.get()
             if len(box)>0:
@@ -227,6 +238,11 @@ class push_toycar():
                 # 检测
                 img = self.far_cap.read()
                 box, conf = self.detect.run(img)
+
+                for b in box:
+                    cv2.rectangle(img, (int(b[0]), int(b[1])), (int(b[2]), int(b[3])), (0, 254, 0), 1)
+                cv2.imshow(self.window_name, img)
+                cv2.waitKey(1)
                 #
                 RT = self.RT.get()
                 if len(box) > 0:
@@ -263,6 +279,15 @@ class push_toycar():
 
             img = self.near_cap.read()
             box, conf = self.detect.run(img)
+
+            cv2.line(img, (left_x, 0), (left_x, img.shape[0]), (0,0,255), 2)
+            cv2.line(img, (right_x, 0), (right_x, img.shape[0]), (0,0,255), 2)
+            cv2.line(img, (0, enter_y), (img.shape[1],enter_y), (0,0,255), 2)
+            for b in box:
+                cv2.rectangle(img, (int(b[0]), int(b[1])), (int(b[2]), int(b[3])), (0, 254, 0), 1)
+            cv2.imshow(self.window_name, img)
+            cv2.waitKey(1)
+
             if len(box)>1:
                 rospy.logerr('docking_toycar: more than one toycar')
                 assert NotImplementedError
