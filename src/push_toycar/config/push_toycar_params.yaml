@@ -15,7 +15,7 @@ docking_toycar:
 detect:
   conf_thres: 0.3
   model_half: True
-  model_path: '/home/gloria/catkin_ws/src/push_toycar/model/best.pt'
+  model_path: '../model/best.pt' # not need edit
   device: 'gpu' # 'gpu' or 'cpu'
 
 # camera param

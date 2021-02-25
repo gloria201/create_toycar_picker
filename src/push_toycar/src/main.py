@@ -58,9 +58,6 @@ class push_toycar():
 
         self.docking_toycar_params = docking_toycar_params
 
-        self.window_name = 'test_windows'
-        #cv2.namedWindow(self.window_name, 0)
-
         threads = [threading.Thread(target=self.listen_RT)]
         threads.append(threading.Thread(target=self.run))
         try:
@@ -75,15 +72,21 @@ class push_toycar():
         #     t.join()
 
     def run(self):
+        self.window_name = 'test_windows'
+        cv2.namedWindow(self.window_name, 0)
         while not rospy.is_shutdown():
             # 找到小车
             map_pos = self.find_toycar()
+            print('Finded toycar and start to move to toycar')
             # 移动到距离小车15cm
             self.move(map_pos)
+            print('arrival position and start to dock ')
             # 机器人小车对接
             self.docking_toycar()
+            print('docked toycar  and start push toycar to target position')
             # 将小车推送到指定地点
             # self.push2target()
+            print('fininsh push ')
 
     def callback(self,data,q):
         q.put(data)
@@ -98,8 +101,6 @@ class push_toycar():
         得到了toycar的位置
            移动到距离小车t_dis距离的位置并且面朝toycar,并且满足近摄像头检测到小车
         '''
-        #print(pos)
-        pos = pos[0].flatten().tolist()
         self.move_base.cancel_goal()
         goal = MoveBaseGoal()
         header = Header(999, rospy.Time.now(), 'map')
@@ -153,6 +154,8 @@ class push_toycar():
             再按照既定路线移动，配置中patrol_route
             移动一圈都没有找到，后报错，结束
         '''
+        self.target_check = target_check()
+
         # 找到小车
         # stage 1 旋转找车
         cur_turn = 0.01
@@ -186,8 +189,9 @@ class push_toycar():
                 pos = self.far_cap.get_position(points)
                 R_ = np.array(RT.R).reshape(3,3)
                 T_ = np.array(RT.T).reshape(3,1)
-                map_pos = [R_.dot(p)+T_ for p in np.array(pos).reshape(-1,3,1)]
-                return map_pos
+                map_pos = [(R_.dot(p)+T_).flatten().tolist() for p in np.array(pos).reshape(-1,3,1)]
+                if self.target_check.update(RT.header.stamp.to_sec(),map_pos):
+                    return self.target_check.get_target()
             cur_theta = R.from_matrix(np.array(RT.R).reshape(3,3)).as_euler('zxy',degrees=True)
 
 
@@ -217,10 +221,13 @@ class push_toycar():
                 pos = self.far_cap.get_position(points)
                 R_ = np.array(RT.R).reshape(3,3)
                 T_ = np.array(RT.T).reshape(3,1)
-                map_pos = [R_.dot(p)+T_ for p in np.array(pos).reshape(-1,3,1)]
-                return map_pos
+                map_pos = [(R_.dot(p)+T_).flatten().tolist() for p in np.array(pos).reshape(-1,3,1)]
+                if self.target_check.update(RT.header.stamp.to_sec(), map_pos):
+                    return self.target_check.get_target()
 
             self.cmd_vel_pub.publish(twist)
+
+        print('Finish rotate (not found toycar) and start to patrol')
         # stage 2 按照规定的路线找车
         for idx,tpose in enumerate(self.find_toycar_params['patrol_route']):
             self.move_base.cancel_goal()
@@ -253,10 +260,11 @@ class push_toycar():
                     pos = self.far_cap.get_position(points)
                     R_ = np.array(RT.R).reshape(3, 3)
                     T_ = np.array(RT.T).reshape(3, 1)
-                    map_pos = [R_.dot(p) + T_ for p in np.array(pos).reshape(-1, 3, 1)]
-                    return map_pos
+                    map_pos = [(R_.dot(p) + T_).flatten().tolist() for p in np.array(pos).reshape(-1, 3, 1)]
+                    if self.target_check.update(RT.header.stamp.to_sec(), map_pos):
+                        return self.target_check.get_target()
 
-        rospy.logerr(' No Find Toycar ')
+        rospy.logerr('finish patrol and  no found toycar')
 
     def docking_toycar(self):
         '''
@@ -329,17 +337,48 @@ class push_toycar():
         pass
 
 class target_check():
-    def __init__(self,max_time= 1, max_distance = 0.1, min_target_times=3):
+    def __init__(self,max_time= 1, max_distance = 0.1, min_target_times=1):
         self.max_time = max_time # 最大间隔时间
         self.min_target_times = min_target_times # 最小检测次数
         self.max_distance = max_distance # 最大间隔距离
-        self.target_info = []
+        self.target_info = []# [[time,position]]
+        self.target_position = None
 
-    def update(self,info):
-        pass
+    def get_target(self):
+        return self.target_position
+
+    def update(self, time, position):
+        # 检查时间
+        new_target_info = []
+        for t in self.target_info:
+            if abs(t-t[0])<self.max_time:
+                new_target_info.append(t)
+
+        # 检查距离
+        self.target_info =[]
+        for pos in position:
+            for _,p in new_target_info:
+                if self.check_distance(pos,p[-1]):
+                    p.append(pos)
+                    self.target_info.append([time,p])
+                    continue
+            #
+            self.target_info.append([time,[pos]])
+        return self.check()
+
+    def check_distance(self,target,pred):
+        dis = np.linalg.norm(np.array(target)-np.array(pred))
+        if dis<=self.max_distance:
+            return True
+        else:
+            return False
 
     def check(self):
-        pass
+        for _,p in self.target_info:
+            if len(p)>=self.min_target_times:
+                self.target_position = p[-1]
+                return True
+        return False
 
 def test():
     rospy.init_node("detect_toycar")
