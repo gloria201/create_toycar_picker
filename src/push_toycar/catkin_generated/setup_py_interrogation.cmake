@@ -1,7 +1,0 @@
-set(push_toycar_SETUP_PY_SETUP_MODULE "setuptools")
-set(push_toycar_SETUP_PY_VERSION "0.0.0")
-set(push_toycar_SETUP_PY_SCRIPTS "")
-set(push_toycar_SETUP_PY_PACKAGES "camera")
-set(push_toycar_SETUP_PY_PACKAGE_DIRS "src/camera")
-set(push_toycar_SETUP_PY_MODULES "")
-set(push_toycar_SETUP_PY_MODULE_DIRS "")

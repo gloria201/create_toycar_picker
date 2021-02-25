@@ -1,8 +1,0 @@
-prefix=/home/gloria/catkin_ws/install
-
-Name: push_toycar
-Description: Description of push_toycar
-Version: 0.0.0
-Cflags: 
-Libs: -L${prefix}/lib 
-Requires: 

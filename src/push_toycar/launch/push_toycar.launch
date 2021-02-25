@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<launch>
+    <arg name="camera_param_root" value="$(find push_toycar)/camera_params"/>
+
+    <node name="push_toycar" pkg="push_toycar" type="main.py" output="screen">
+        <rosparam file="$(find push_toycar)/config/push_toycar_params.yaml"  command="load"/>
+        <param name="camera_param_root" value="$(arg camera_param_root)"/>
+    </node>
+
+
+    <node name="laser2map" pkg="push_toycar" type="tf2topic.py" output="screen" >
+    </node>
+</launch>
