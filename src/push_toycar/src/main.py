@@ -75,13 +75,13 @@ class push_toycar():
         self.window_name = 'test_windows'
         cv2.namedWindow(self.window_name, 0)
         while not rospy.is_shutdown():
-            # 找到小车
-            map_pos = self.find_toycar()
-            print('Finded toycar and start to move to toycar')
-            # 移动到距离小车15cm
-            self.move(map_pos)
-            print('arrival position and start to dock ')
-            # 机器人小车对接
+            # # 找到小车
+            # map_pos = self.find_toycar()
+            # print('Finded toycar and start to move to toycar')
+            # # 移动到距离小车15cm
+            # self.move(map_pos)
+            # print('arrival position and start to dock ')
+            # # 机器人小车对接
             self.docking_toycar()
             print('docked toycar  and start push toycar to target position')
             # 将小车推送到指定地点
@@ -108,7 +108,7 @@ class push_toycar():
 
         RT = self.RT.get()
         T_= RT.T
-        t_dis = 0.35
+        t_dis = 0.15
         dis = ((T_[0]-pos[0])**2+(T_[1]-pos[1])**2)**0.5
         # 移动到的位置一定大于当前与目标的位置
         assert dis>t_dis
@@ -273,7 +273,7 @@ class push_toycar():
             控制机器人和小车链接
         '''
 
-        cur_turn = 0.05
+        cur_turn = 0.1
         max_turn = 0.1
         cur_x = 0.05
         max_x = 0.1
@@ -304,18 +304,19 @@ class push_toycar():
                 assert NotImplementedError
             elif len(box)==0:
                 rospy.logerr('docking_toycar: No Find toycar')
-                assert NotImplementedError
+                # assert NotImplementedError
 
+            box = box[0]
             if box[3]<min_y:
                 if box[2]>right_x:
                     # 左转
-                    twist.angular = [0, 0, -cur_turn]
-                elif box[0]<right_x:
+                    twist.angular = Vector3(0, 0, -cur_turn)
+                elif box[0]<left_x:
                     #　右转
-                    twist.angular = [0, 0, cur_turn]
+                    twist.angular = Vector3(0, 0, cur_turn)
                 else:
                     # 前进
-                    twist.linear = [cur_x, 0, 0]
+                    twist.linear = Vector3(cur_x, 0, 0)
             else:
 
                 if box[2]<right_x and box[0]>left_x:
@@ -325,11 +326,12 @@ class push_toycar():
                         return True
                     else:
                         # 前进
-                        twist.linear = [cur_x, 0, 0]
-                # 出现这种情况，应该哪里没有处理好
-                rospy.logwarn('docking_toycar: No Find toycar')
-                # 后退
-                twist.linear = [-cur_x, 0, 0]
+                        twist.linear = Vector3(cur_x, 0, 0)
+                else:
+                    # 出现这种情况，应该哪里没有处理好
+                    rospy.logwarn('docking_toycar: No Find toycar')
+                    # backwards
+                    twist.linear = Vector3(-cur_x, 0, 0)
 
             self.cmd_vel_pub.publish(twist)
 
