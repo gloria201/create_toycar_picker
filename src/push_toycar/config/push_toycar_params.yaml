@@ -8,12 +8,12 @@ find_toycar:
   patrol_route: [[0,0,0,0,0,0,1],[1.85,0,0,0,0,0.38,0.92],[1.6,-0.3,0,0,1,0],[0.5,-0.2,0,0,0,-0.38,0.92]]
 
 docking_toycar:
-  left_port: [[545,390]]
-  right_port: [[763,390]]
-  enter_port: 390
+  left_port: [500,390]
+  right_port: [800,390]
+  enter_port: 350
 # detect model param
 detect:
-  conf_thres: 0.3
+  conf_thres: 0.2
   model_half: True
   model_path: '../model/best.pt' # not need edit
   device: 'gpu' # 'gpu' or 'cpu'
