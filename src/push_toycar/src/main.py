@@ -76,10 +76,10 @@ class push_toycar():
         cv2.namedWindow(self.window_name, 0)
         while not rospy.is_shutdown():
             # 找到小车
-            map_pos = self.find_toycar()
+            # map_pos = self.find_toycar()
             print('Finded toycar and start to move to toycar')
             # 移动到距离小车15cm
-            self.move(map_pos)
+            # self.move(map_pos)
             print('arrival position and start to dock ')
             # 机器人小车对接
             self.docking_toycar()
@@ -310,7 +310,7 @@ class push_toycar():
                 if box[2]>right_x:
                     # 左转
                     twist.angular = [0, 0, -cur_turn]
-                elif box[0]<right_x:
+                elif box[0]<left_x:
                     #　右转
                     twist.angular = [0, 0, cur_turn]
                 else:
@@ -326,10 +326,11 @@ class push_toycar():
                     else:
                         # 前进
                         twist.linear = [cur_x, 0, 0]
-                # 出现这种情况，应该哪里没有处理好
-                rospy.logwarn('docking_toycar: No Find toycar')
-                # 后退
-                twist.linear = [-cur_x, 0, 0]
+                else:
+                    # 出现这种情况，应该哪里没有处理好
+                    rospy.logwarn('docking_toycar: No Find toycar')
+                    # 后退
+                    twist.linear = [-cur_x, 0, 0]
 
             self.cmd_vel_pub.publish(twist)
 
@@ -379,6 +380,157 @@ class target_check():
                 self.target_position = p[-1]
                 return True
         return False
+
+class control_move():
+    def __init__(self,goal):
+
+        self.max_x_vel = 0.1
+        # 按照5hz计算
+        self.acc_lim_x = 0.1/5
+        self.max_theta_vel = 0.1
+        # 角加速度0.1，不然不移动
+        self.acc_lim_theta = 0.1
+
+        self.xy_goal_tolerance = 0.05
+        self.yaw_goal_tolerance = 0.03
+        self.goal = goal
+
+        # 其他参数
+        self.max_theta = 0.1 # 超出就停止前进
+        self.min_theta = 0.05 # 达到就开始前进
+
+        # 状态
+        self.cur_x_vel = 0
+        self.cur_theta_vel = 0
+        self.state = 'init' # {'init':初始，'arrival'：位置到了&旋转中，'finish'：位置和朝向都到了，
+                       # 'move'：移动过程中：前进中，'stop'：移动过程中：停止中，'turn'：移动过程中：旋转中}
+        self.all_state = {}
+
+    def move_old(self, cur_pose):
+        '''
+        -- 如果朝向偏移
+            停下，进行旋转
+        -- 如果朝向正确
+            前进
+
+        # 会震荡
+        '''
+        theta,dis = self.compute_theta(self.goal,cur_pose)
+        if dis < self.xy_goal_tolerance:
+            # 到达位置,只需要旋转
+            if abs(theta)<self.yaw_goal_tolerance:
+                return True
+            else:
+                if theta>0:
+                    self.cur_theta_vel = min(self.cur_theta_vel,self.cur_theta_vel+self.acc_lim_theta)
+                else:
+                    self.cur_theta_vel = min(self.cur_theta_vel, self.cur_theta_vel - self.acc_lim_theta)
+        else:
+            # 没有到达位置
+            # todo 这种写法不方便
+            if abs(theta)>=self.max_theta:
+                # 停下 和 转向
+                if self.cur_x_vel>0:
+                    # 停下
+                    self.cur_x_vel = max(0,self.cur_x_vel-self.acc_lim_x)
+                else:
+                    # 开始转向
+                    if theta > 0:
+                        self.cur_theta_vel = min(self.cur_theta_vel, self.cur_theta_vel + self.acc_lim_theta)
+                    else:
+                        self.cur_theta_vel = min(self.cur_theta_vel, self.cur_theta_vel - self.acc_lim_theta)
+            else:
+                pass
+
+    def move(self, cur_pose, cmd_publish):
+        '''
+        -- 如果朝向偏移
+            停下，进行旋转
+        -- 如果朝向正确
+            前进
+
+        # 会震荡
+        '''
+        theta, dis = self.compute_theta(self.goal, cur_pose)
+        if self.state == 'init':
+            # 初始状态
+            # check distance
+            if dis<self.xy_goal_tolerance:
+                if abs(theta)<self.yaw_goal_tolerance:
+                    self.state = 'finish'
+                else:
+                    self.state = 'arrival'
+            else:
+                if abs(theta)<self.min_theta:
+                    self.state = 'move'
+                else:
+                    self.state = 'turn'
+
+        elif self.state == 'arrival':
+            #　位置到了&旋转中
+            if abs(theta) < self.yaw_goal_tolerance:
+                self.state = 'finish'
+            else:
+                if theta > 0:
+                    self.cur_theta_vel = min(self.cur_theta_vel, self.cur_theta_vel + self.acc_lim_theta)
+                else:
+                    self.cur_theta_vel = min(self.cur_theta_vel, self.cur_theta_vel - self.acc_lim_theta)
+
+        elif self.state == 'finish':
+            # 位置和角度都到了
+            return True
+
+        elif self.state == 'move':
+            if abs(dis)<self.xy_goal_tolerance:
+                self.cur_x_vel = max(0,self.cur_x_vel-self.acc_lim_x)
+                if self.cur_x_vel>0:
+                    print(' arrival but vel is not zero: vel ',self.cur_x_vel)
+                    self.state = 'stop'
+                else:
+                    self.state = 'arrival'
+            if abs(theta) >= self.max_theta:
+                self.state = 'stop'
+                self.cur_x_vel = max(0, self.cur_x_vel - self.acc_lim_x)
+
+        elif self.state == 'stop':
+            if self.cur_x_vel>0:
+                self.cur_x_vel = max(0, self.cur_x_vel - self.acc_lim_x)
+            else:
+                self.state = 'turn'
+                if theta > 0:
+                    self.cur_theta_vel = min(self.cur_theta_vel, self.cur_theta_vel + self.acc_lim_theta)
+                else:
+                    self.cur_theta_vel = min(self.cur_theta_vel, self.cur_theta_vel - self.acc_lim_theta)
+        elif self.state == 'turn':
+            if abs(theta)<self.min_theta:
+                self.cur_theta_vel = 0
+            else:
+                if theta > 0:
+                    self.cur_theta_vel = min(self.cur_theta_vel, self.cur_theta_vel + self.acc_lim_theta)
+                else:
+                    self.cur_theta_vel = min(self.cur_theta_vel, self.cur_theta_vel - self.acc_lim_theta)
+        else:
+            print('the state is error',self.state)
+
+        if self.state == 2:
+            return True
+        else:
+            cmd_publish.publish()
+            return False
+
+    def compute_theta(self,target_pose,cur_pose):
+        theta = 0
+        dis = 0
+        return theta,dis
+
+    def rotate(self):
+        pass
+
+    def move_forward(self):
+        pass
+
+    def check_arrival(self):
+        return True
 
 def test():
     rospy.init_node("detect_toycar")

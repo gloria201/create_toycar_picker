@@ -8,6 +8,7 @@ class CameraCap():
         self.cam_model = CameraModel(cam_param_root)
 
         cap = cv2.VideoCapture(camera_param[camera_name]['dev'])
+        # cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
         cap.set(5, camera_param['camera_fps'])
         cap.set(3, int(camera_param['image_shape'][0]))
         cap.set(4, int(camera_param['image_shape'][1]))
