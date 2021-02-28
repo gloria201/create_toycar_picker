@@ -74,8 +74,8 @@ class push_toycar():
     def run(self):
         self.window_name = 'test_windows'
         cv2.namedWindow(self.window_name, 0)
-        while not rospy.is_shutdown():
-            self.test_findtoycar()
+        self.test_findtoycar()
+        # while not rospy.is_shutdown():
             # 找到小车
             # map_pos = self.find_toycar()
             # print('Finded toycar and start to move to toycar')
@@ -148,6 +148,7 @@ class push_toycar():
 
     def test_findtoycar(self):
         marker_pub = rospy.Publisher("/cube", Marker, queue_size=10)
+        self.target_check = target_check()
         while not rospy.is_shutdown():
             img = self.far_cap.read()
             box, conf = self.detect.run(img)
@@ -169,6 +170,7 @@ class push_toycar():
                 if self.target_check.update(RT.header.stamp.to_sec(), map_pos):
                     target_pos = self.target_check.get_target()
                     print(' find toycar and start to find next toycar ')
+                    self.target_check = target_check()
                     marker_pub.publish(mark(target_pos,999,(0.9,0,0)))
     # todo 需要多帧确认
     # todo 确认后，停下, 调整成朝向目标
