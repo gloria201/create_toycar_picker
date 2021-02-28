@@ -18,7 +18,7 @@ from geometry_msgs.msg import Twist, Vector3
 
 import actionlib
 from actionlib_msgs.msg import GoalStatus
-from geometry_msgs.msg import Pose, Point, Quaternion
+from geometry_msgs.msg import Pose, Point, Quaternion, PoseStamped
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 
 from scipy.spatial.transform import Rotation as R
@@ -148,6 +148,7 @@ class push_toycar():
 
     def test_findtoycar(self):
         marker_pub = rospy.Publisher("/cube", Marker, queue_size=10)
+        temp_goal = rospy.Publisher("/temp_goal",PoseStamped,queue_size=5)
         self.target_check = target_check()
         while not rospy.is_shutdown():
             img = self.far_cap.read()
@@ -172,6 +173,23 @@ class push_toycar():
                     print(' find toycar and start to find next toycar ')
                     self.target_check = target_check()
                     marker_pub.publish(mark(target_pos,999,(0.9,0,0)))
+                    for i,p in enumerate():
+                        T_ = RT.T
+                        t_dis = 0.15
+                        dis = ((T_[0] - pos[0]) ** 2 + (T_[1] - pos[1]) ** 2) ** 0.5
+                        # 移动到的位置一定大于当前与目标的位置
+                        assert dis > t_dis
+                        ratio = t_dis / dis
+                        move_pose_position = [(T_[0] - pos[0]) * ratio + pos[0], (T_[1] - pos[1]) * ratio + pos[1], 0]
+
+                        theta = np.arccos((pos[0] - T_[0]) / dis)
+                        if pos[1] - T_[1] < 0:
+                            theta = 360 - theta
+                        r = R.from_euler('zxy', (theta, 0, 0))
+                        move_pose_orientation = r.as_quat()
+
+                        p = Pose(Point(*p), Quaternion(*move_pose_orientation))
+                        temp_goal.publish(PoseStamped(Header(i,rospy.Time.now(),'map'),p))
     # todo 需要多帧确认
     # todo 确认后，停下, 调整成朝向目标
     def find_toycar(self):
@@ -365,7 +383,7 @@ class push_toycar():
         pass
 
 class target_check():
-    def __init__(self,max_time= 1, max_distance = 0.1, min_target_times=1):
+    def __init__(self, max_time= 1, max_distance = 0.1, min_target_times=1):
         self.max_time = max_time # 最大间隔时间
         self.min_target_times = min_target_times # 最小检测次数
         self.max_distance = max_distance # 最大间隔距离
