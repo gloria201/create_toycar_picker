@@ -188,7 +188,7 @@ class push_toycar():
                         r = R.from_euler('zxy', (theta, 0, 0))
                         move_pose_orientation = r.as_quat()
 
-                        p = Pose(Point(*p), Quaternion(*move_pose_orientation))
+                        p = Pose(Point(*move_pose_position), Quaternion(*move_pose_orientation))
                         temp_goal.publish(PoseStamped(Header(i,rospy.Time.now(),'map'),p))
     # todo 需要多帧确认
     # todo 确认后，停下, 调整成朝向目标
