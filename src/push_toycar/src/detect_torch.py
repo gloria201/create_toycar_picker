@@ -7,6 +7,7 @@ import torch
 import sys
 
 sys.path.append('/home/gloria/catkin_ws/src/yolov5')  # absolute path to YOLOV5
+sys.path.append('/home/zjrobot/SLAM/detect/yolov5')  # absolute path to YOLOV5
 from models.experimental import attempt_load
 
 

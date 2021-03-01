@@ -9,7 +9,7 @@ import threading
 import time
 import numpy as np
 import queue
-# from detect_torch import ToyCar
+from detect_torch import ToyCar
 from camera.camera_model import CameraModel
 from camera.camera_capture import CameraCap
 from create_msgs.msg import laser2map
@@ -24,6 +24,8 @@ from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 
 from scipy.spatial.transform import Rotation as R
 
+SHOW = False
+
 def main():
     rospy.init_node("detect_toycar")
 
@@ -34,16 +36,17 @@ def main():
     find_toycar_params = rospy.get_param("~find_toycar")
     detect_interval = rospy.get_param("~detect_interval")
     final_goal = rospy.get_param("~final_goal")
+    use_move_base = rospy.get_param("~use_move_base")
 
     far_cap = CameraCap('far_camera',camera_param,camera_param_root)
     near_cap = CameraCap('near_camera',camera_param,camera_param_root)
 
     detect = ToyCar(**detect_param)
 
-    push_toycar(detect,far_cap,near_cap,find_toycar_params,docking_toycar_params,final_goal)
+    push_toycar(detect,far_cap,near_cap,find_toycar_params,docking_toycar_params,final_goal, use_move_base)
 
 class push_toycar():
-    def __init__(self,detect, far_cap, near_cap,find_toycar_params,docking_toycar_params,final_goal):
+    def __init__(self,detect, far_cap, near_cap,find_toycar_params,docking_toycar_params,final_goal, use_move_base):
         self.detect = detect
         self.far_cap = far_cap
         self.near_cap = near_cap
@@ -52,8 +55,11 @@ class push_toycar():
         #
         self.RT = queue.Queue(10)
 
-        self.move_base = actionlib.SimpleActionClient("/move_base", MoveBaseAction)
-        self.move_base.wait_for_server(rospy.Duration(5))
+        if use_move_base:
+            self.move_base = actionlib.SimpleActionClient("/move_base", MoveBaseAction)
+            self.move_base.wait_for_server(rospy.Duration(5))
+        else:
+            self.move_base = None
 
         self.cmd_vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
 
@@ -75,20 +81,21 @@ class push_toycar():
     def run(self):
         self.window_name = 'test_windows'
         cv2.namedWindow(self.window_name, 0)
-        self.test_findtoycar()
-        # while not rospy.is_shutdown():
+        while not rospy.is_shutdown():
             # 找到小车
-            # map_pos = self.find_toycar()
-            # print('Finded toycar and start to move to toycar')
+            map_pos = self.find_toycar()
+            print('Finded toycar and start to move to toycar')
             # 移动到距离小车15cm
-            # self.move(map_pos)
-            # print('arrival position and start to dock ')
+            '''
+            self.move(map_pos)
+            print('arrival position and start to dock ')
             # 机器人小车对接
-            # self.docking_toycar()
-            # print('docked toycar  and start push toycar to target position')
+            self.docking_toycar()
+            print('docked toycar  and start push toycar to target position')
             # 将小车推送到指定地点
-            # self.push2target()
-            # print('fininsh push ')
+            self.push2target()
+            print('fininsh push ')
+            '''
 
     def callback(self,data,q):
         q.put(data)
@@ -98,15 +105,12 @@ class push_toycar():
         rospy.Subscriber("laser2map", laser2map, self.callback,self.RT)
         rospy.spin()
 
-    def move(self,pos,max_time = 60):
+    def move(self,pos,max_time = 360):
         '''
         得到了toycar的位置
            移动到距离小车t_dis距离的位置并且面朝toycar,并且满足近摄像头检测到小车
         '''
-        self.move_base.cancel_goal()
-        goal = MoveBaseGoal()
-        header = Header(999, rospy.Time.now(), 'map')
-        goal.target_pose.header = header
+
 
         RT = self.RT.get()
         T_= RT.T
@@ -124,19 +128,20 @@ class push_toycar():
         move_pose_orientation = r.as_quat()
 
 
-        goal = MoveBaseGoal()
-        header = Header(888, rospy.Time.now(), 'map')
-        goal.target_pose.header = header
-        goal.target_pose.pose = Pose(Point(*move_pose_position), Quaternion(*move_pose_orientation))
-        self.move_base.send_goal(goal)
+        move = control_move([move_pose_position,move_pose_orientation],self.cmd_vel_pub, move_base = self.move_base)
         t = 0
         while not rospy.is_shutdown() and t<max_time:
-
-            state = self.move_base.get_state()
-            if state == GoalStatus.SUCCEEDED:
+            RT = self.RT.get()
+            theta = R.from_matrix(np.array(RT.R).reshape(3, 3)).as_euler('zxy')
+            cur_pose = [RT.T, theta]
+            state = move.run(cur_pose)
+            if state:
                 break
             t+=1
-            time.sleep(1)
+            if self.move_base:
+                time.sleep(1)
+            else:
+                time.sleep(0.1) # 10hz
 
         # 近距离的相机检测小车确认
         img = self.near_cap.read()
@@ -157,8 +162,9 @@ class push_toycar():
             # print(box,conf)
             for b in box:
                 cv2.rectangle(img, (int(b[0]), int(b[1])), (int(b[2]), int(b[3])), (0, 254, 0), 1)
-            cv2.imshow(self.window_name, img)
-            cv2.waitKey(1)
+            if SHOW:
+                cv2.imshow(self.window_name, img)
+                cv2.waitKey(1)
             #
             RT = self.RT.get()
             if len(box) > 0:
@@ -210,6 +216,7 @@ class push_toycar():
         RT = self.RT.get()
         init_theta = R.from_matrix(np.array(RT.R).reshape(3,3)).as_euler('zxy',degrees=True)
 
+        '''
         while not rospy.is_shutdown():
             twist = Twist()
             twist.linear = Vector3(0,0,0)
@@ -226,8 +233,9 @@ class push_toycar():
             #print(box,conf)
             for b in box:
                 cv2.rectangle(img, (int(b[0]), int(b[1])), (int(b[2]), int(b[3])), (0, 254, 0), 1)
-            cv2.imshow(self.window_name, img)
-            cv2.waitKey(1)
+            if SHOW:
+                cv2.imshow(self.window_name, img)
+                cv2.waitKey(1)
             #
             RT = self.RT.get()
             if len(box)>0:
@@ -241,9 +249,9 @@ class push_toycar():
             cur_theta = R.from_matrix(np.array(RT.R).reshape(3,3)).as_euler('zxy',degrees=True)
 
 
-            if cur_theta[0] >=(init_theta[0]-5) and cur_theta[0] - init_theta[0]>320:
+            if cur_theta[0] >=(init_theta[0]-5) and cur_theta[0] - init_theta[0]>340:
                 break
-            elif cur_theta[0] <(init_theta[0]-5) and (180- init_theta[0])+(cur_theta[0]+180)>320:
+            elif cur_theta[0] <(init_theta[0]-5) and (180- init_theta[0])+(cur_theta[0]+180)>340:
                 break
             self.cmd_vel_pub.publish(twist)
         # 停下
@@ -258,8 +266,9 @@ class push_toycar():
             box,conf = self.detect.run(img)
             for b in box:
                 cv2.rectangle(img, (int(b[0]), int(b[1])), (int(b[2]), int(b[3])), (0, 254, 0), 1)
-            cv2.imshow(self.window_name, img)
-            cv2.waitKey(1)
+            if SHOW:
+                cv2.imshow(self.window_name, img)
+                cv2.waitKey(1)
             #
             RT = self.RT.get()
             if len(box)>0:
@@ -274,19 +283,16 @@ class push_toycar():
             self.cmd_vel_pub.publish(twist)
 
         print('Finish rotate (not found toycar) and start to patrol')
+        '''
         # stage 2 按照规定的路线找车
         for idx,tpose in enumerate(self.find_toycar_params['patrol_route']):
-            self.move_base.cancel_goal()
-            goal = MoveBaseGoal()
-            header = Header(idx, rospy.Time.now(), 'map')
-            goal.target_pose.header = header
-            goal.target_pose.pose = Pose(Point(*tpose[:3]), Quaternion(*tpose[3:]))
-            self.move_base.send_goal(goal)
-
+            move = control_move([tpose[:3],tpose[3:]],self.cmd_vel_pub,move_base=self.move_base)
             while not rospy.is_shutdown():
-
-                state = self.move_base.get_state()
-                if state == GoalStatus.SUCCEEDED:
+                RT = self.RT.get()
+                theta = R.from_matrix(np.array(RT.R).reshape(3, 3)).as_euler('zxy')
+                cur_pose = [RT.T, theta]
+                state = move.run(cur_pose)
+                if state :
                     break
                 # elif state == GoalStatus.ABORTED:
                 #     self.move_base.send_goal(goal)
@@ -297,8 +303,9 @@ class push_toycar():
 
                 for b in box:
                     cv2.rectangle(img, (int(b[0]), int(b[1])), (int(b[2]), int(b[3])), (0, 254, 0), 1)
-                cv2.imshow(self.window_name, img)
-                cv2.waitKey(1)
+                if SHOW:
+                    cv2.imshow(self.window_name, img)
+                    cv2.waitKey(1)
                 #
                 RT = self.RT.get()
                 if len(box) > 0:
@@ -342,8 +349,9 @@ class push_toycar():
             cv2.line(img, (0, enter_y), (img.shape[1],enter_y), (0,0,255), 2)
             for b in box:
                 cv2.rectangle(img, (int(b[0]), int(b[1])), (int(b[2]), int(b[3])), (0, 254, 0), 1)
-            cv2.imshow(self.window_name, img)
-            cv2.waitKey(1)
+            if SHOW:
+                cv2.imshow(self.window_name, img)
+                cv2.waitKey(1)
 
             if len(box)>1:
                 rospy.logerr('docking_toycar: more than one toycar')
@@ -380,8 +388,22 @@ class push_toycar():
                     twist.linear = Vector3(-cur_x, 0, 0)
             self.cmd_vel_pub.publish(twist)
 
-    def push2target(self):
-        pass
+    def push2target(self,max_time = 360):
+        move = control_move([self.final_goal[:3],self.final_goal[3:]], self.cmd_vel_pub, move_base=self.move_base)
+        t = 0
+        while not rospy.is_shutdown() and t < max_time:
+            RT = self.RT.get()
+            theta = R.from_matrix(np.array(RT.R).reshape(3, 3)).as_euler('zxy')
+            cur_pose = [RT.T, theta]
+            state = move.run()
+            if state:
+                break
+            t += 1
+            if self.move_base:
+                time.sleep(1)
+            else:
+                time.sleep(0.1)  # 10hz
+
 
 class target_check():
     def __init__(self, max_time= 1, max_distance = 0.1, min_target_times=1):
@@ -428,8 +450,8 @@ class target_check():
         return False
 
 class control_move():
-    def __init__(self,goal,cmd_publish, publish_temp_goal = None):
-
+    def __init__(self,goal,cmd_publish, publish_temp_goal = None, move_base = None):
+        # goal [[pos],[quat]]
         self.max_x_vel = 0.1
         # 按照5hz计算
         self.acc_lim_x = 0.1/5
@@ -439,12 +461,24 @@ class control_move():
 
         self.xy_goal_tolerance = 0.1
         self.yaw_goal_tolerance = 0.03
-        self.goal = goal
+
 
         # 其他参数
         self.max_theta = 0.05 # 超出就停止前进
         self.min_theta = 0.05 # 达到就开始前进
 
+        # 是否使用move base
+        self.move_base = move_base
+        if self.move_base:
+            self.move_base.cancel_goal()
+            move_goal = MoveBaseGoal()
+            header = Header(999, rospy.Time.now(), 'map')
+            move_goal.target_pose.header = header
+            move_goal.target_pose.pose = Pose(Point(*goal[0]), Quaternion(*goal[1]))
+            self.move_base.send_goal(move_goal)
+        else:
+            goal[1] = R.from_quat(goal[1]).as_euler('zxy')
+            self.goal = goal
         # 状态
         self.cur_x_vel = 0
         self.cur_theta_vel = 0
@@ -452,6 +486,13 @@ class control_move():
                        # 'move'：移动过程中：前进中，'stop'：移动过程中：停止中，'turn'：移动过程中：旋转中}
         self.cmd_publish = cmd_publish
         self.publish_temp_goal = publish_temp_goal
+
+    def run(self,cur_pose):
+        if self.move_base:
+            state = self.move_base.get_state()
+            return state == GoalStatus.SUCCEEDED
+        else:
+            return self.move(cur_pose)
 
     def move_old(self, cur_pose):
         '''
@@ -592,22 +633,13 @@ class control_move():
                 theta = np.pi+theta
             else:
                 theta = -np.pi+theta
-        theta = theta- np.deg2rad(cur_pose[1][0])
+        theta = theta- cur_pose[1][0]
         theta = (theta+2*np.pi)%(np.pi*2)
         if theta>np.pi:
             theta = theta-2*np.pi
 
         dis = np.linalg.norm(np.array(target_pose[0])[:2]-np.array(cur_pose[0])[:2])
         return theta,dis
-
-    def rotate(self):
-        pass
-
-    def move_forward(self):
-        pass
-
-    def check_arrival(self):
-        return True
 
 def test():
     rospy.init_node("detect_toycar")
@@ -644,8 +676,9 @@ def test():
         box, conf = detect.run(img)
         for b in box:
             cv2.rectangle(img, (int(b[0]), int(b[1])), (int(b[2]), int(b[3])), (0, 254, 0), 1)
-        cv2.imshow('debug', img)
-        cv2.waitKey(1)
+        if SHOW:
+            cv2.imshow('debug', img)
+            cv2.waitKey(1)
 
         if len(box) ==0 :
             continue
@@ -733,7 +766,7 @@ def test_control():
             move = control_move(goal,self.cmd_vel_pub, self.debug_publish)
             while not rospy.is_shutdown():
                 RT = self.RT.get()
-                theta = R.from_matrix(np.array(RT.R).reshape(3, 3)).as_euler('zxy', degrees=True)
+                theta = R.from_matrix(np.array(RT.R).reshape(3, 3)).as_euler('zxy')
                 cur_pose = [RT.T,theta]
                 arrival = move.move(cur_pose)
                 if arrival:
@@ -751,6 +784,6 @@ def test_control():
     push_toycar()
 
 if __name__ == '__main__':
-    # main()
+    main()
     # test()
-    test_control()
+    # test_control()
