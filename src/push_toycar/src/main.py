@@ -75,19 +75,20 @@ class push_toycar():
     def run(self):
         self.window_name = 'test_windows'
         cv2.namedWindow(self.window_name, 0)
-        while not rospy.is_shutdown():
+        self.test_findtoycar()
+        # while not rospy.is_shutdown():
             # 找到小车
             # map_pos = self.find_toycar()
-            print('Finded toycar and start to move to toycar')
+            # print('Finded toycar and start to move to toycar')
             # 移动到距离小车15cm
             # self.move(map_pos)
-            print('arrival position and start to dock ')
+            # print('arrival position and start to dock ')
             # 机器人小车对接
-            self.docking_toycar()
-            print('docked toycar  and start push toycar to target position')
+            # self.docking_toycar()
+            # print('docked toycar  and start push toycar to target position')
             # 将小车推送到指定地点
             # self.push2target()
-            print('fininsh push ')
+            # print('fininsh push ')
 
     def callback(self,data,q):
         q.put(data)
@@ -146,6 +147,50 @@ class push_toycar():
             rospy.logerr(' Near Camera No Find Toycar ')
             rospy.logerr(' maybe toycar position is wrong ')
 
+    def test_findtoycar(self):
+        marker_pub = rospy.Publisher("/cube", Marker, queue_size=10)
+        temp_goal = rospy.Publisher("/temp_goal",PoseStamped,queue_size=5)
+        self.target_check = target_check()
+        while not rospy.is_shutdown():
+            img = self.far_cap.read()
+            box, conf = self.detect.run(img)
+            # print(box,conf)
+            for b in box:
+                cv2.rectangle(img, (int(b[0]), int(b[1])), (int(b[2]), int(b[3])), (0, 254, 0), 1)
+            cv2.imshow(self.window_name, img)
+            cv2.waitKey(1)
+            #
+            RT = self.RT.get()
+            if len(box) > 0:
+                points = [[[(b[0] + b[2]) / 2, b[3]]] for b in box]
+                pos = self.far_cap.get_position(points)
+                R_ = np.array(RT.R).reshape(3, 3)
+                T_ = np.array(RT.T).reshape(3, 1)
+                map_pos = [(R_.dot(p) + T_).flatten().tolist() for p in np.array(pos).reshape(-1, 3, 1)]
+                for i,p in enumerate(map_pos):
+                    marker_pub.publish(mark(p, i))
+                if self.target_check.update(RT.header.stamp.to_sec(), map_pos):
+                    target_pos = self.target_check.get_target()
+                    print(' find toycar and start to find next toycar ')
+                    self.target_check = target_check()
+                    marker_pub.publish(mark(target_pos,999,(0.9,0,0)))
+                    for i,p in enumerate():
+                        T_ = RT.T
+                        t_dis = 0.15
+                        dis = ((T_[0] - pos[0]) ** 2 + (T_[1] - pos[1]) ** 2) ** 0.5
+                        # 移动到的位置一定大于当前与目标的位置
+                        assert dis > t_dis
+                        ratio = t_dis / dis
+                        move_pose_position = [(T_[0] - pos[0]) * ratio + pos[0], (T_[1] - pos[1]) * ratio + pos[1], 0]
+
+                        theta = np.arccos((pos[0] - T_[0]) / dis)
+                        if pos[1] - T_[1] < 0:
+                            theta = 360 - theta
+                        r = R.from_euler('zxy', (theta, 0, 0))
+                        move_pose_orientation = r.as_quat()
+
+                        p = Pose(Point(*move_pose_position), Quaternion(*move_pose_orientation))
+                        temp_goal.publish(PoseStamped(Header(i,rospy.Time.now(),'map'),p))
     # todo 需要多帧确认
     # todo 确认后，停下, 调整成朝向目标
     def find_toycar(self):
@@ -339,7 +384,7 @@ class push_toycar():
         pass
 
 class target_check():
-    def __init__(self,max_time= 1, max_distance = 0.1, min_target_times=1):
+    def __init__(self, max_time= 1, max_distance = 0.1, min_target_times=1):
         self.max_time = max_time # 最大间隔时间
         self.min_target_times = min_target_times # 最小检测次数
         self.max_distance = max_distance # 最大间隔距离
@@ -614,7 +659,7 @@ def test():
 
             had_pub = True
 
-def mark(pos,ids=0):
+def mark(pos,ids=0,color = (0,0.8,0)):
     marker = Marker()
 
     # 指定Marker的参考框架
@@ -653,9 +698,9 @@ def mark(pos,ids=0):
     marker.pose.orientation.w = 1.0
 
     # Marker的颜色和透明度
-    marker.color.r = 0.0
-    marker.color.g = 0.8
-    marker.color.b = 0.0
+    marker.color.r = color[0]
+    marker.color.g = color[1]
+    marker.color.b = color[2]
     marker.color.a = 0.5
 
     # Marker被自动销毁之前的存活时间，rospy.Duration()意味着在程序结束之前一直存在
