@@ -158,7 +158,7 @@ def letterbox(img, new_shape=(640, 640), color=(114, 114, 114), auto=True, scale
     return img, ratio, (dw, dh)
 
 class ToyCar():
-    def __init__(self,model_path =None ,imgsz =640, conf_thres = 0.3,iou_thres = 0.3,model_half=False,device='gpu'):
+    def __init__(self,model_path =None ,imgsz =640, far_conf_thres = 0.3,near_conf_thres = 0.2,iou_thres = 0.3,model_half=False,device='gpu'):
         if model_path ==None:
             model_path =os.path.dirname(__file__) + 'model/best.pt'
         elif model_path.startswith('/'):
@@ -166,7 +166,8 @@ class ToyCar():
         else:
             model_path = os.path.join(os.path.dirname(__file__),model_path)
         self.imgsz = imgsz
-        self.conf_thres = conf_thres
+        self.far_conf_thres = far_conf_thres
+        self.near_conf_thres = near_conf_thres
         self.iou_thres = iou_thres
         if device=='gpu':
             self.device = torch.device('cuda:0')
@@ -177,7 +178,7 @@ class ToyCar():
         if self.half:
             self.model.half()  # to FP16
 
-    def run(self,img):
+    def run(self,img,is_near = False):
         if img is None:
             return [],[]
         img_size = img.shape[:2]
@@ -186,13 +187,17 @@ class ToyCar():
         ratio = np.array([img_size[1]/img_rs[1],img_size[0]/img_rs[0],img_size[1]/img_rs[1],img_size[0]/img_rs[0]])
         with torch.no_grad():
             box_conf = self.model(img)[0]
-        box,conf = self.postcessing(box_conf)
+        box,conf = self.postcessing(box_conf,is_near)
         if len(box)>0:
             box = (np.array(box)*ratio[None]).tolist()
         return box,conf
 
-    def postcessing(self,pred):
-        pred = non_max_suppression(pred, self.conf_thres, self.iou_thres, classes=None, agnostic=False)[0]
+    def postcessing(self,pred, is_near=False):
+        if is_near:
+            conf_thres = self.near_conf_thres
+        else:
+            conf_thres = self.far_conf_thres
+        pred = non_max_suppression(pred, conf_thres, self.iou_thres, classes=None, agnostic=False)[0]
         if pred is None:return [],[]
         box_conf = pred.cpu().numpy()
         return box_conf[:,:4].tolist(), box_conf[:,4].tolist()

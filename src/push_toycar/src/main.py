@@ -86,7 +86,6 @@ class push_toycar():
             map_pos = self.find_toycar()
             print('Finded toycar and start to move to toycar')
             # 移动到距离小车15cm
-            '''
             self.move(map_pos)
             print('arrival position and start to dock ')
             # 机器人小车对接
@@ -95,7 +94,7 @@ class push_toycar():
             # 将小车推送到指定地点
             self.push2target()
             print('fininsh push ')
-            '''
+
 
     def callback(self,data,q):
         q.put(data)
@@ -216,7 +215,6 @@ class push_toycar():
         RT = self.RT.get()
         init_theta = R.from_matrix(np.array(RT.R).reshape(3,3)).as_euler('zxy',degrees=True)
 
-        '''
         while not rospy.is_shutdown():
             twist = Twist()
             twist.linear = Vector3(0,0,0)
@@ -283,7 +281,6 @@ class push_toycar():
             self.cmd_vel_pub.publish(twist)
 
         print('Finish rotate (not found toycar) and start to patrol')
-        '''
         # stage 2 按照规定的路线找车
         for idx,tpose in enumerate(self.find_toycar_params['patrol_route']):
             move = control_move([tpose[:3],tpose[3:]],self.cmd_vel_pub,move_base=self.move_base)
@@ -342,7 +339,7 @@ class push_toycar():
             twist.linear = Vector3(0, 0, 0)
 
             img = self.near_cap.read()
-            box, conf = self.detect.run(img)
+            box, conf = self.detect.run(img,is_near=True)
 
             cv2.line(img, (left_x, 0), (left_x, img.shape[0]), (0,0,255), 2)
             cv2.line(img, (right_x, 0), (right_x, img.shape[0]), (0,0,255), 2)

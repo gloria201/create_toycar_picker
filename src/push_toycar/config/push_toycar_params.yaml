@@ -1,6 +1,6 @@
 detect_interval: 3
 
-use_move_base: True
+use_move_base: False
 
 final_goal: [0.3,-0.4,0,0,1,0]
 
@@ -15,7 +15,8 @@ docking_toycar:
   enter_port: 350
 # detect model param
 detect:
-  conf_thres: 0.2
+  far_conf_thres: 0.4
+  near_conf_thres: 0.2
   model_half: True
   model_path: '../model/best.pt' # not need edit
   device: 'gpu' # 'gpu' or 'cpu'
