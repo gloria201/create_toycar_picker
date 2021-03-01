@@ -1,4 +1,5 @@
-#!/home/gloria/anaconda3/envs/py3_8_env/bin/python3
+#!/home/zjrobot/anaconda3/envs/pytorch/bin/python
+# /home/gloria/anaconda3/envs/py3_8_env/bin/python3
 # -*- coding: utf-8 -*-
 
 import os
@@ -8,7 +9,7 @@ import threading
 import time
 import numpy as np
 import queue
-from detect_torch import ToyCar
+# from detect_torch import ToyCar
 from camera.camera_model import CameraModel
 from camera.camera_capture import CameraCap
 from create_msgs.msg import laser2map
@@ -18,7 +19,7 @@ from geometry_msgs.msg import Twist, Vector3
 
 import actionlib
 from actionlib_msgs.msg import GoalStatus
-from geometry_msgs.msg import Pose, Point, Quaternion
+from geometry_msgs.msg import Pose, Point, Quaternion, PoseStamped
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 
 from scipy.spatial.transform import Rotation as R
@@ -117,7 +118,7 @@ class push_toycar():
 
         theta = np.arccos((pos[0]-T_[0])/dis)
         if pos[1]-T_[1]<0:
-            theta = 360-theta
+            theta = np.pi*2-theta
         r = R.from_euler('zxy',(theta,0,0))
         move_pose_orientation = r.as_quat()
 
@@ -382,7 +383,7 @@ class target_check():
         return False
 
 class control_move():
-    def __init__(self,goal):
+    def __init__(self,goal,cmd_publish, publish_temp_goal = None):
 
         self.max_x_vel = 0.1
         # 按照5hz计算
@@ -391,12 +392,12 @@ class control_move():
         # 角加速度0.1，不然不移动
         self.acc_lim_theta = 0.1
 
-        self.xy_goal_tolerance = 0.05
+        self.xy_goal_tolerance = 0.1
         self.yaw_goal_tolerance = 0.03
         self.goal = goal
 
         # 其他参数
-        self.max_theta = 0.1 # 超出就停止前进
+        self.max_theta = 0.05 # 超出就停止前进
         self.min_theta = 0.05 # 达到就开始前进
 
         # 状态
@@ -404,7 +405,8 @@ class control_move():
         self.cur_theta_vel = 0
         self.state = 'init' # {'init':初始，'arrival'：位置到了&旋转中，'finish'：位置和朝向都到了，
                        # 'move'：移动过程中：前进中，'stop'：移动过程中：停止中，'turn'：移动过程中：旋转中}
-        self.all_state = {}
+        self.cmd_publish = cmd_publish
+        self.publish_temp_goal = publish_temp_goal
 
     def move_old(self, cur_pose):
         '''
@@ -442,7 +444,7 @@ class control_move():
             else:
                 pass
 
-    def move(self, cur_pose, cmd_publish):
+    def move(self, cur_pose):
         '''
         -- 如果朝向偏移
             停下，进行旋转
@@ -452,6 +454,7 @@ class control_move():
         # 会震荡
         '''
         theta, dis = self.compute_theta(self.goal, cur_pose)
+        print(self.state)
         if self.state == 'init':
             # 初始状态
             # check distance
@@ -468,29 +471,40 @@ class control_move():
 
         elif self.state == 'arrival':
             #　位置到了&旋转中
+            theta = np.deg2rad(self.goal[1][0]-cur_pose[1][0])
             if abs(theta) < self.yaw_goal_tolerance:
+                print('finish')
                 self.state = 'finish'
             else:
                 if theta > 0:
-                    self.cur_theta_vel = min(self.cur_theta_vel, self.cur_theta_vel + self.acc_lim_theta)
+                    self.cur_theta_vel = max(min(self.cur_theta_vel, self.cur_theta_vel + self.acc_lim_theta),self.acc_lim_theta)
                 else:
-                    self.cur_theta_vel = min(self.cur_theta_vel, self.cur_theta_vel - self.acc_lim_theta)
+                    self.cur_theta_vel = -max(min(self.cur_theta_vel, self.cur_theta_vel + self.acc_lim_theta),self.acc_lim_theta)
 
         elif self.state == 'finish':
             # 位置和角度都到了
             return True
 
         elif self.state == 'move':
-            if abs(dis)<self.xy_goal_tolerance:
+            if dis<self.xy_goal_tolerance:
                 self.cur_x_vel = max(0,self.cur_x_vel-self.acc_lim_x)
                 if self.cur_x_vel>0:
                     print(' arrival but vel is not zero: vel ',self.cur_x_vel)
                     self.state = 'stop'
                 else:
+                    print(' arrival  position')
                     self.state = 'arrival'
-            if abs(theta) >= self.max_theta:
-                self.state = 'stop'
-                self.cur_x_vel = max(0, self.cur_x_vel - self.acc_lim_x)
+            else:
+                if abs(theta) >= self.max_theta:
+                    # 走偏了
+                    self.state = 'stop'
+                    self.cur_x_vel = max(0, self.cur_x_vel - self.acc_lim_x)
+                else:
+                    if dis<=self.cur_x_vel*self.acc_lim_x/2:
+                        # 快到了
+                        self.cur_x_vel = min(self.cur_x_vel-self.acc_lim_x,self.acc_lim_x)
+                    else:
+                        self.cur_x_vel = min(self.max_x_vel , self.cur_x_vel+self.acc_lim_x)
 
         elif self.state == 'stop':
             if self.cur_x_vel>0:
@@ -501,26 +515,44 @@ class control_move():
                     self.cur_theta_vel = min(self.cur_theta_vel, self.cur_theta_vel + self.acc_lim_theta)
                 else:
                     self.cur_theta_vel = min(self.cur_theta_vel, self.cur_theta_vel - self.acc_lim_theta)
+
         elif self.state == 'turn':
             if abs(theta)<self.min_theta:
                 self.cur_theta_vel = 0
+                self.state = 'move'
             else:
                 if theta > 0:
-                    self.cur_theta_vel = min(self.cur_theta_vel, self.cur_theta_vel + self.acc_lim_theta)
+                    self.cur_theta_vel = max(min(self.cur_theta_vel, self.cur_theta_vel + self.acc_lim_theta),self.acc_lim_theta)
                 else:
-                    self.cur_theta_vel = min(self.cur_theta_vel, self.cur_theta_vel - self.acc_lim_theta)
+                    self.cur_theta_vel = -max(min(self.cur_theta_vel, self.cur_theta_vel + self.acc_lim_theta),self.acc_lim_theta)
         else:
             print('the state is error',self.state)
 
         if self.state == 2:
             return True
         else:
-            cmd_publish.publish()
+            twist = Twist()
+            twist.linear = Vector3(self.cur_x_vel, 0, 0)
+            twist.angular = Vector3(0, 0, self.cur_theta_vel)
+            self.cmd_publish.publish(twist)
             return False
 
     def compute_theta(self,target_pose,cur_pose):
-        theta = 0
-        dis = 0
+        # 角度范围是在【-180,180】
+        # theta = target_pose[1][0]-cur_pose[1][0]
+        theta = np.arctan(((target_pose[0][1]-cur_pose[0][1])/(target_pose[0][0]-cur_pose[0][0])))
+
+        if target_pose[0][0]-cur_pose[0][0]<0:
+            if theta<0:
+                theta = np.pi+theta
+            else:
+                theta = -np.pi+theta
+        theta = theta- np.deg2rad(cur_pose[1][0])
+        theta = (theta+2*np.pi)%(np.pi*2)
+        if theta>np.pi:
+            theta = theta-2*np.pi
+
+        dis = np.linalg.norm(np.array(target_pose[0])[:2]-np.array(cur_pose[0])[:2])
         return theta,dis
 
     def rotate(self):
@@ -630,6 +662,50 @@ def mark(pos,ids=0):
     marker.lifetime = rospy.Duration()
     return marker
 
+def test_control():
+    rospy.init_node("test_control")
+
+    class push_toycar():
+        def __init__(self):
+            self.RT = queue.Queue(10)
+            self.cmd_vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
+            self.debug_publish = rospy.Publisher('/debug_goal', PoseStamped, queue_size=5)
+
+            threads = [threading.Thread(target=self.listen_RT)]
+            threads.append(threading.Thread(target=self.run))
+            try:
+                for t in threads:
+                    t.start()
+            finally:
+                twist = Twist()
+                twist.linear = Vector3(0, 0, 0)
+                twist.angular = Vector3(0, 0, 0)
+                self.cmd_vel_pub.publish(twist)
+
+
+        def run(self):
+            goal = [[-1,1,0],[0,0,0]]
+            move = control_move(goal,self.cmd_vel_pub, self.debug_publish)
+            while not rospy.is_shutdown():
+                RT = self.RT.get()
+                theta = R.from_matrix(np.array(RT.R).reshape(3, 3)).as_euler('zxy', degrees=True)
+                cur_pose = [RT.T,theta]
+                arrival = move.move(cur_pose)
+                if arrival:
+                    break
+            print('finish move')
+
+        def callback(self, data, q):
+            q.put(data)
+            q.get() if q.qsize() > 1 else time.sleep(0.02)
+
+        def listen_RT(self, ):
+            rospy.Subscriber("laser2map", laser2map, self.callback, self.RT)
+            rospy.spin()
+
+    push_toycar()
+
 if __name__ == '__main__':
-    main()
+    # main()
     # test()
+    test_control()
