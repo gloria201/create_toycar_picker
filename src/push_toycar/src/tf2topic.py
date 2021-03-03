@@ -16,8 +16,8 @@ def main():
 
     while not rospy.is_shutdown():
         try:
-            # (trans,rot) = listener.lookupTransform('/map', '/laser', rospy.Time(0))
-            (trans,rot) = listener.lookupTransform('/map', '/base_scan', rospy.Time(0))
+            (trans,rot) = listener.lookupTransform('/map', '/laser', rospy.Time(0))
+            # (trans,rot) = listener.lookupTransform('/map', '/base_scan', rospy.Time(0))
         except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
             continue
         header = Header(cur_index, rospy.Time.now(), 'laser2map')

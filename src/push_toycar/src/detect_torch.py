@@ -221,7 +221,7 @@ def test_video():
         cam_id = int(sys.argv[1])
     print('use video ',cam_id)
     cap = cv2.VideoCapture(cam_id)
-    detect = ToyCar('best.pt')
+    detect = ToyCar('../model/best.pt')
     while 1:
         ret, img = cap.read()
         if not ret:break

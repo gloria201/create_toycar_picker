@@ -2,20 +2,20 @@ detect_interval: 3
 
 use_move_base: False
 
-final_goal: [0.3,-0.4,0,0,1,0]
+final_goal: [0,-0.4,0,0,1,0]
 
 # find toycar
 find_toycar:
-  patrol_route: [[0,0,0,0,0,0,1],[-1,1,0,0,0,0.38,0.92],[1.6,-0.3,0,0,1,0],[0.5,-0.2,0,0,0,-0.38,0.92]]
+  patrol_route: [[0,0,0,0,0,0,1],[1.7,0,0,0,0,0.38,0.92],[1.7,-0.3,0,0,0,1,0],[0.5,-0.3,0,0,0,-0.38,0.92]]
   patrol_route_test: [[3,4,0,0,0,0,1],[-1,1,0,0,0,0.38,0.92],[1.6,-0.3,0,0,1,0],[0.5,-0.2,0,0,0,-0.38,0.92]]
 
 docking_toycar:
-  left_port: [500,390]
-  right_port: [800,390]
-  enter_port: 350
+  left_port: [490,290]
+  right_port: [750,290]
+  enter_port: 300
 # detect model param
 detect:
-  far_conf_thres: 0.4
+  far_conf_thres: 0.7
   near_conf_thres: 0.2
   model_half: True
   model_path: '../model/best.pt' # not need edit

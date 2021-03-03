@@ -1,5 +1,5 @@
-#!/home/zjrobot/anaconda3/envs/pytorch/bin/python
-# /home/gloria/anaconda3/envs/py3_8_env/bin/python3
+#!/home/gloria/anaconda3/envs/py3_8_env/bin/python3
+# /home/zjrobot/anaconda3/envs/pytorch/bin/python
 # -*- coding: utf-8 -*-
 
 import os
@@ -209,8 +209,8 @@ class push_toycar():
 
         # 找到小车
         # stage 1 旋转找车
-        cur_turn = 0.01
-        max_turn = 0.1
+        cur_turn = 0.1
+        max_turn = 0.5
 
         RT = self.RT.get()
         init_theta = R.from_matrix(np.array(RT.R).reshape(3,3)).as_euler('zxy',degrees=True)
@@ -449,10 +449,10 @@ class target_check():
 class control_move():
     def __init__(self,goal,cmd_publish, publish_temp_goal = None, move_base = None):
         # goal [[pos],[quat]]
-        self.max_x_vel = 0.1
+        self.max_x_vel = 0.15
         # 按照5hz计算
         self.acc_lim_x = 0.1/5
-        self.max_theta_vel = 0.1
+        self.max_theta_vel = 0.3
         # 角加速度0.1，不然不移动
         self.acc_lim_theta = 0.1
 
