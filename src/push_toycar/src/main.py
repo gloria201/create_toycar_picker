@@ -24,7 +24,7 @@ from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 
 from scipy.spatial.transform import Rotation as R
 
-SHOW = False
+SHOW = True
 
 def main():
     rospy.init_node("detect_toycar")
@@ -537,7 +537,7 @@ class control_move():
         # 会震荡
         '''
         theta, dis = self.compute_theta(self.goal, cur_pose)
-        print(self.state)
+        # print(self.state)
         if self.state == 'init':
             # 初始状态
             # check distance
