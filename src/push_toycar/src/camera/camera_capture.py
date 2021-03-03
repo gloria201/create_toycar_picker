@@ -30,5 +30,5 @@ class CameraCap():
             pos = self.cam_model.run(points)
         return pos
 
-    def exit(self):
+    def close(self):
         self.cap.release()
