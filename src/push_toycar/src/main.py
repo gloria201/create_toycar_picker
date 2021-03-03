@@ -43,17 +43,44 @@ def main():
 
     detect = ToyCar(**detect_param)
 
-    push_toycar(detect,far_cap,near_cap,find_toycar_params,docking_toycar_params,final_goal, use_move_base)
+    RT_q = queue.Queue(10)
+    push_toycar(detect,far_cap,near_cap,find_toycar_params,docking_toycar_params,final_goal, use_move_base,RT_q)
+    cmd_vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
+
+    RT_listen = get_RT(RT_q)
+
+    threads = [threading.Thread(target=RT_listen.listen_RT,)]
+    threads.append(threading.Thread(target=push_toycar.run,))
+    try:
+        for t in threads:
+            t.start()
+    finally:
+        twist = Twist()
+        twist.linear = Vector3(0, 0, 0)
+        twist.angular = Vector3(0, 0, 0)
+        cmd_vel_pub.publish(twist)
+
+class get_RT():
+    def __init__(self,q):
+        self.RT = q
+
+    def callback(self, data, q):
+        q.put(data)
+        q.get() if q.qsize() > 1 else time.sleep(0.02)
+
+    def listen_RT(self, ):
+        rospy.Subscriber("laser2map", laser2map, self.callback, self.RT)
+        rospy.spin()
 
 class push_toycar():
-    def __init__(self,detect, far_cap, near_cap,find_toycar_params,docking_toycar_params,final_goal, use_move_base):
+    def __init__(self,detect, far_cap, near_cap,find_toycar_params,docking_toycar_params,final_goal, use_move_base,RT_q):
         self.detect = detect
         self.far_cap = far_cap
         self.near_cap = near_cap
         self.find_toycar_params = find_toycar_params
         self.final_goal = final_goal
         #
-        self.RT = queue.Queue(10)
+        self.RT = RT_q
 
         if use_move_base:
             self.move_base = actionlib.SimpleActionClient("/move_base", MoveBaseAction)
@@ -64,19 +91,6 @@ class push_toycar():
         self.cmd_vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
 
         self.docking_toycar_params = docking_toycar_params
-
-        threads = [threading.Thread(target=self.listen_RT)]
-        threads.append(threading.Thread(target=self.run))
-        try:
-            for t in threads:
-                t.start()
-        finally:
-            twist = Twist()
-            twist.linear = Vector3(0, 0, 0)
-            twist.angular = Vector3(0, 0, 0)
-            self.cmd_vel_pub.publish(twist)
-        # for t in threads:
-        #     t.join()
 
     def run(self):
         self.window_name = 'test_windows'
@@ -94,15 +108,6 @@ class push_toycar():
             # 将小车推送到指定地点
             self.push2target()
             print('fininsh push ')
-
-
-    def callback(self,data,q):
-        q.put(data)
-        q.get() if q.qsize()>1 else time.sleep(0.02)
-
-    def listen_RT(self,):
-        rospy.Subscriber("laser2map", laser2map, self.callback,self.RT)
-        rospy.spin()
 
     def move(self,pos,max_time = 360):
         '''
@@ -400,7 +405,6 @@ class push_toycar():
                 time.sleep(1)
             else:
                 time.sleep(0.1)  # 10hz
-
 
 class target_check():
     def __init__(self, max_time= 1, max_distance = 0.1, min_target_times=1):
