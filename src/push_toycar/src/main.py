@@ -48,7 +48,7 @@ def main():
 
     RT_q = queue.Queue(10)
     threads = [threading.Thread(target=get_RT.listen_RT,args=(RT_q,))]
-    threads.append(threading.Thread(target=push_toycar.run,args=(RT_q,))
+    threads.append(threading.Thread(target=push_toycar.run,args=(RT_q,)))
     try:
         for t in threads:
             t.start()
