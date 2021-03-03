@@ -174,7 +174,7 @@ class push_toycar():
             if len(box) > 0:
                 points = [[[(b[0] + b[2]) / 2, b[3]]] for b in box]
                 pos = self.far_cap.get_position(points)
-                R_ = np.array(RT.R).reshape(3, 3)git log
+                R_ = np.array(RT.R).reshape(3, 3)
                 T_ = np.array(RT.T).reshape(3, 1)
                 map_pos = [(R_.dot(p) + T_).flatten().tolist() for p in np.array(pos).reshape(-1, 3, 1)]
                 for i,p in enumerate(map_pos):
