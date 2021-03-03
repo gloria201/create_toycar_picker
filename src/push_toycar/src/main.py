@@ -43,12 +43,14 @@ def main():
 
     detect = ToyCar(**detect_param)
 
-    push_toycar(detect,far_cap,near_cap,find_toycar_params,docking_toycar_params,final_goal, use_move_base)
+    RT_q = queue.Queue(10)
+    push_toycar(detect,far_cap,near_cap,find_toycar_params,docking_toycar_params,final_goal, use_move_base,RT_q)
     cmd_vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
 
-    RT_q = queue.Queue(10)
-    threads = [threading.Thread(target=get_RT.listen_RT,args=(RT_q,))]
-    threads.append(threading.Thread(target=push_toycar.run,args=(RT_q,)))
+    RT_listen = get_RT(RT_q)
+
+    threads = [threading.Thread(target=RT_listen.listen_RT,)]
+    threads.append(threading.Thread(target=push_toycar.run,))
     try:
         for t in threads:
             t.start()
@@ -57,7 +59,6 @@ def main():
         twist.linear = Vector3(0, 0, 0)
         twist.angular = Vector3(0, 0, 0)
         cmd_vel_pub.publish(twist)
-
 
 class get_RT():
     def __init__(self,q):
@@ -70,7 +71,6 @@ class get_RT():
     def listen_RT(self, ):
         rospy.Subscriber("laser2map", laser2map, self.callback, self.RT)
         rospy.spin()
-
 
 class push_toycar():
     def __init__(self,detect, far_cap, near_cap,find_toycar_params,docking_toycar_params,final_goal, use_move_base,RT_q):
@@ -108,7 +108,6 @@ class push_toycar():
             # 将小车推送到指定地点
             self.push2target()
             print('fininsh push ')
-
 
     def move(self,pos,max_time = 360):
         '''
@@ -406,7 +405,6 @@ class push_toycar():
                 time.sleep(1)
             else:
                 time.sleep(0.1)  # 10hz
-
 
 class target_check():
     def __init__(self, max_time= 1, max_distance = 0.1, min_target_times=1):
