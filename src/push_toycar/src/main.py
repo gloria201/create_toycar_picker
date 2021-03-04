@@ -393,6 +393,8 @@ class push_toycar():
                     twist.linear = Vector3(-cur_x, 0, 0)
             self.cmd_vel_pub.publish(twist)
 
+        self.near_cap.close()
+
     def push2target(self,max_time = 360):
         move = control_move([self.final_goal[:3],self.final_goal[3:]], self.cmd_vel_pub, move_base=self.move_base)
         t = 0
