@@ -3,7 +3,7 @@ detect_interval: 3
 use_move_base: False
 
 final_goal: [0,-0.4,0,0,1,0]
-
+start_point: None # 起点,如果设置成None,则使用机器人启动的定位位置
 # find toycar
 find_toycar:
   patrol_route: [[0,0,0,0,0,0,1],[1.7,0,0,0,0,0.38,0.92],[1.7,-0.3,0,0,0,1,0],[0.5,-0.3,0,0,0,-0.38,0.92]]

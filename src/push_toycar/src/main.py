@@ -36,6 +36,7 @@ def main():
     find_toycar_params = rospy.get_param("~find_toycar")
     detect_interval = rospy.get_param("~detect_interval")
     final_goal = rospy.get_param("~final_goal")
+    start_point = rospy.get_param("~start_point")
     use_move_base = rospy.get_param("~use_move_base")
 
     far_cap = CameraCap('far_camera',camera_param,camera_param_root)
@@ -43,10 +44,10 @@ def main():
 
     detect = ToyCar(**detect_param)
 
-    push_toycar(detect,far_cap,near_cap,find_toycar_params,docking_toycar_params,final_goal, use_move_base)
+    push_toycar(detect,far_cap,near_cap,find_toycar_params,docking_toycar_params,final_goal, use_move_base,start_point=start_point)
 
 class push_toycar():
-    def __init__(self,detect, far_cap, near_cap,find_toycar_params,docking_toycar_params,final_goal, use_move_base):
+    def __init__(self,detect, far_cap, near_cap,find_toycar_params,docking_toycar_params,final_goal, use_move_base,start_point=None):
         self.detect = detect
         self.far_cap = far_cap
         self.near_cap = near_cap
@@ -60,6 +61,14 @@ class push_toycar():
             self.move_base.wait_for_server(rospy.Duration(5))
         else:
             self.move_base = None
+
+        if start_point is None:
+            RT = self.RT.get()
+            theta = R.from_matrix(np.array(RT.R).reshape(3, 3)).as_euler('zxy')
+            cur_pose = [RT.T, theta]
+            self.start_point = cur_pose
+        else:
+            self.start_point = start_point
 
         self.cmd_vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
 
@@ -75,8 +84,6 @@ class push_toycar():
             twist.linear = Vector3(0, 0, 0)
             twist.angular = Vector3(0, 0, 0)
             self.cmd_vel_pub.publish(twist)
-        # for t in threads:
-        #     t.join()
 
     def run(self):
         self.window_name = 'test_windows'
@@ -94,6 +101,55 @@ class push_toycar():
             # 将小车推送到指定地点
             self.push2target()
             print('fininsh push ')
+            # 回到起点
+            self.move2start_point()
+            print('arrival start point !')
+
+    def move2start_point(self,max_time = 360):
+        # 移动回到起点
+        # 后退 10cm
+        move_dis = 0.1
+        RT = self.RT.get()
+        theta = R.from_matrix(np.array(RT.R).reshape(3, 3)).as_euler('zxy')
+        start_pose = [RT.T, theta]
+        max_x_vel = 0.1
+        cur_x_vel = 0
+        acc_lim_x = 0.1/5
+        while not rospy.is_shutdown():
+            RT = self.RT.get()
+            theta = R.from_matrix(np.array(RT.R).reshape(3, 3)).as_euler('zxy')
+            cur_pose = [RT.T, theta]
+            if np.linalg.norm(np.array(cur_pose[0])-np.array(start_pose[0]))<move_dis*0.8:
+                cur_x_vel = max(max_x_vel,cur_x_vel+acc_lim_x)
+            else:
+                if cur_x_vel<=0:
+                    return True
+                cur_x_vel = cur_x_vel-acc_lim_x
+            twist = Twist()
+            twist.linear = Vector3(-cur_x_vel, 0, 0)
+            twist.angular = Vector3(0, 0, 0)
+            self.cmd_vel_pub.publish(twist)
+            time.sleep(0.1)
+
+
+        # 朝向起点移动
+        move = control_move([self.start_point[:3],self.start_point[3:]], self.cmd_vel_pub, move_base=self.move_base)
+        t = 0
+        while not rospy.is_shutdown() and t < max_time:
+            RT = self.RT.get()
+            theta = R.from_matrix(np.array(RT.R).reshape(3, 3)).as_euler('zxy')
+            cur_pose = [RT.T, theta]
+            state = move.run(cur_pose)
+            if state:
+                print('target arrival')
+                return True
+            t += 1
+            if self.move_base:
+                time.sleep(1)
+            else:
+                time.sleep(0.1)  # 10hz
+        print('move2start_point:out of time !')
+
 
     def callback(self,data,q):
         q.put(data)
@@ -411,7 +467,7 @@ class push_toycar():
                 time.sleep(1)
             else:
                 time.sleep(0.1)  # 10hz
-        print('out of time !')
+        print('push2target，out of time !')
 
 class target_check():
     def __init__(self, max_time= 1, max_distance = 0.1, min_target_times=1):
