@@ -2,7 +2,7 @@ detect_interval: 3
 
 use_move_base: False
 
-final_goal: [0,-0.4,0,0,1,0]
+final_goal: [2,-0.3,0,0,0,1,0]
 
 # find toycar
 find_toycar:
@@ -10,9 +10,9 @@ find_toycar:
   patrol_route_test: [[3,4,0,0,0,0,1],[-1,1,0,0,0,0.38,0.92],[1.6,-0.3,0,0,1,0],[0.5,-0.2,0,0,0,-0.38,0.92]]
 
 docking_toycar:
-  left_port: [490,290]
-  right_port: [750,290]
-  enter_port: 300
+  left_port: [524,304]
+  right_port: [784,300]
+  enter_port: 330
 # detect model param
 detect:
   far_conf_thres: 0.7
@@ -27,8 +27,8 @@ camera:
   camera_fps: 30
   # camera_dev  and camera_param_root
   far_camera:
-    dev: 4
+    dev: 2
     path: 'camera1'
   near_camera:
-    dev: 2
+    dev: 4
     path: 'camera2'

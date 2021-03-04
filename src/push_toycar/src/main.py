@@ -363,6 +363,7 @@ class push_toycar():
                 assert NotImplementedError
             elif len(box)==0:
                 rospy.logerr('docking_toycar: No Find toycar')
+                continue
                 # assert NotImplementedError
 
             box = box[0]

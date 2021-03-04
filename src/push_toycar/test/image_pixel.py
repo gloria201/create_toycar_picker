@@ -19,7 +19,7 @@ def on_mouse(event ,x,y,flag,param):
 
 
 def video():
-    cap_dev = 2
+    cap_dev = 4
     cap = cv2.VideoCapture(cap_dev)
     cap.set(5, 30)
     cap.set(3, 1280)

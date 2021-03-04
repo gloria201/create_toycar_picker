@@ -216,7 +216,7 @@ class ToyCar():
         return img
 
 def test_video():
-    cam_id = 0
+    cam_id = 4
     if len(sys.argv)>1:
         cam_id = int(sys.argv[1])
     print('use video ',cam_id)
