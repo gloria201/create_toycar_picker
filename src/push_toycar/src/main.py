@@ -150,7 +150,6 @@ class push_toycar():
                 time.sleep(0.1)  # 10hz
         print('move2start_point:out of time !')
 
-
     def callback(self,data,q):
         q.put(data)
         q.get() if q.qsize()>1 else time.sleep(0.02)
@@ -383,7 +382,8 @@ class push_toycar():
     def docking_toycar(self):
         '''
         TODO: 改成pid
-        近距离的相机已经能看到目标了,保证只有一个目标
+        近距离的相机已经能看到目标了,
+            多个目标，只操作距离机器最近的
             控制机器人和小车链接
         '''
 
@@ -415,14 +415,17 @@ class push_toycar():
                 cv2.waitKey(1)
 
             if len(box)>1:
-                rospy.logerr('docking_toycar: more than one toycar')
-                assert NotImplementedError
+                rospy.logerr('docking_toycar: %d toycar.'%(len(box)))
+                box_dis = np.array(box)
+                box_dis = box_dis.reshape(-1,2,2).mean(axis=1)
+                box_dis = np.linalg.norm(box_dis-np.array([[img.shape[1]//2,img.shape[0]//2]]),axis=1)
+                box = box[np.argmin(box_dis)]
             elif len(box)==0:
                 rospy.logerr('docking_toycar: No Find toycar')
                 continue
                 # assert NotImplementedError
-
-            box = box[0]
+            else:
+                box = box[0]
             if box[3]<min_y:
                 if box[2]>right_x:
                     # 左转
