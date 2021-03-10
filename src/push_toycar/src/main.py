@@ -167,7 +167,7 @@ class push_toycar():
 
         RT = self.RT.get()
         T_= RT.T
-        t_dis = 0.15
+        t_dis = 0.30
         dis = ((T_[0]-pos[0])**2+(T_[1]-pos[1])**2)**0.5
         # 移动到的位置一定大于当前与目标的位置
         assert dis>t_dis
@@ -277,7 +277,7 @@ class push_toycar():
 
         RT = self.RT.get()
         init_theta = R.from_matrix(np.array(RT.R).reshape(3,3)).as_euler('zxy',degrees=True)
-
+        #self.near_cap.releaase()
         while not rospy.is_shutdown():
             twist = Twist()
             twist.linear = Vector3(0,0,0)
@@ -290,6 +290,10 @@ class push_toycar():
             # 检测
             #print('to get image')
             img = self.far_cap.read()
+            if img is None:
+                print('far image is None')
+                if self.near_cap.read()[0] is None:
+                    print('near image is None')
             box,conf = self.detect.run(img)
             #print(box,conf)
             for b in box:
@@ -345,37 +349,38 @@ class push_toycar():
 
         print('Finish rotate (not found toycar) and start to patrol')
         # stage 2 按照规定的路线找车
-        for idx,tpose in enumerate(self.find_toycar_params['patrol_route']):
-            move = control_move([tpose[:3],tpose[3:]],self.cmd_vel_pub,move_base=self.move_base)
-            while not rospy.is_shutdown():
-                RT = self.RT.get()
-                theta = R.from_matrix(np.array(RT.R).reshape(3, 3)).as_euler('zxy')
-                cur_pose = [RT.T, theta]
-                state = move.run(cur_pose)
-                if state :
-                    break
-                # elif state == GoalStatus.ABORTED:
-                #     self.move_base.send_goal(goal)
+        while not rospy.is_shutdown():
+            for idx,tpose in enumerate(self.find_toycar_params['patrol_route']):
+                move = control_move([tpose[:3],tpose[3:]],self.cmd_vel_pub,move_base=self.move_base)
+                while not rospy.is_shutdown():
+                    RT = self.RT.get()
+                    theta = R.from_matrix(np.array(RT.R).reshape(3, 3)).as_euler('zxy')
+                    cur_pose = [RT.T, theta]
+                    state = move.run(cur_pose)
+                    if state :
+                        break
+                    # elif state == GoalStatus.ABORTED:
+                    #     self.move_base.send_goal(goal)
 
-                # 检测
-                img = self.far_cap.read()
-                box, conf = self.detect.run(img)
+                    # 检测
+                    img = self.far_cap.read()
+                    box, conf = self.detect.run(img)
 
-                for b in box:
-                    cv2.rectangle(img, (int(b[0]), int(b[1])), (int(b[2]), int(b[3])), (0, 254, 0), 1)
-                if SHOW:
-                    cv2.imshow(self.window_name, img)
-                    cv2.waitKey(1)
-                #
-                RT = self.RT.get()
-                if len(box) > 0:
-                    points = [[[(b[0] + b[2]) / 2, b[3]]] for b in box]
-                    pos = self.far_cap.get_position(points)
-                    R_ = np.array(RT.R).reshape(3, 3)
-                    T_ = np.array(RT.T).reshape(3, 1)
-                    map_pos = [(R_.dot(p) + T_).flatten().tolist() for p in np.array(pos).reshape(-1, 3, 1)]
-                    if self.target_check.update(RT.header.stamp.to_sec(), map_pos):
-                        return self.target_check.get_target()
+                    for b in box:
+                        cv2.rectangle(img, (int(b[0]), int(b[1])), (int(b[2]), int(b[3])), (0, 254, 0), 1)
+                    if SHOW:
+                        cv2.imshow(self.window_name, img)
+                        cv2.waitKey(1)
+                    #
+                    RT = self.RT.get()
+                    if len(box) > 0:
+                        points = [[[(b[0] + b[2]) / 2, b[3]]] for b in box]
+                        pos = self.far_cap.get_position(points)
+                        R_ = np.array(RT.R).reshape(3, 3)
+                        T_ = np.array(RT.T).reshape(3, 1)
+                        map_pos = [(R_.dot(p) + T_).flatten().tolist() for p in np.array(pos).reshape(-1, 3, 1)]
+                        if self.target_check.update(RT.header.stamp.to_sec(), map_pos):
+                            return self.target_check.get_target()
 
         rospy.logerr('finish patrol and  no found toycar')
 
@@ -442,6 +447,7 @@ class push_toycar():
                     if box[1]>enter_y:
                         # 表示已经完成
                         self.cmd_vel_pub.publish(twist)
+                        self.near_cap.close()
                         return True
                     else:
                         # 前进

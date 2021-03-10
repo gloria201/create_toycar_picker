@@ -2,18 +2,18 @@ detect_interval: 3
 
 use_move_base: False
 
-final_goal: [2,-0.3,0,0,0,1,0]
+final_goal: [2,-0.3,0,0,0,0,1]
 start_point: None # 起点,如果设置成None,则使用机器人启动的定位位置
 
 # find toycar
 find_toycar:
-  patrol_route: [[0,0,0,0,0,0,1],[1.7,0,0,0,0,0.38,0.92],[1.7,-0.3,0,0,0,1,0],[0.5,-0.3,0,0,0,-0.38,0.92]]
+  patrol_route: [[0,0.3,0,0,0,0,1],[1.8,0.3,0,0,0,0,1],[1.8,-0.3,0,0,0,1,0],[0,-0.3,0,0,0,1,0]]
   patrol_route_test: [[3,4,0,0,0,0,1],[-1,1,0,0,0,0.38,0.92],[1.6,-0.3,0,0,1,0],[0.5,-0.2,0,0,0,-0.38,0.92]]
 
 docking_toycar:
-  left_port: [524,304]
-  right_port: [784,300]
-  enter_port: 330
+  left_port: [502,304]
+  right_port: [793,304]
+  enter_port: 340
 # detect model param
 detect:
   far_conf_thres: 0.7
