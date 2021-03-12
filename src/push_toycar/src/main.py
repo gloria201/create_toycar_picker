@@ -4,11 +4,11 @@
 
 import os
 import cv2
-import rospy
 import threading
 import time
 import numpy as np
 import queue
+import rospy
 from detect_torch import ToyCar
 from camera.camera_model import CameraModel
 from camera.camera_capture import CameraCap
@@ -491,6 +491,7 @@ class target_check():
 
         self.final_goal = np.array(final_goal[:3])
         self.min_final_goal = min_final_goal # 距离最终目标至少0.3米
+
     def get_target(self):
         return self.target_position
 
@@ -502,7 +503,7 @@ class target_check():
                 new_target_info.append(tinfo)
 
         # 检查距离
-        self.target_info =[]
+        self.target_info =new_target_info
         for pos in position:
             flag = 1
             for _,p in new_target_info:
@@ -512,7 +513,7 @@ class target_check():
                     flag = 0
                     break
             if flag:
-                self.target_info.append([time,[pos]])
+                self.target_info.append([cur_time,[pos]])
         return self.check()
 
     def check_distance(self,target,pred):
@@ -722,6 +723,13 @@ class control_move():
 
         dis = np.linalg.norm(np.array(target_pose[0])[:2]-np.array(cur_pose[0])[:2])
         return theta,dis
+
+def test_target_check():
+    pos = [[1,2,3],[1.3,2.3,3.2],[1,1,1],[1,3,4],[1,3,2],[1,3,4],[1,2,6],[1,3,3]]
+    ck = target_check(min_target_times=2,final_goal=pos[-1])
+    for p in pos:
+        if ck.update(time.time(),[p]):
+            print(ck.get_target())
 
 def test():
     rospy.init_node("detect_toycar")
