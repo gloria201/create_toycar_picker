@@ -382,7 +382,7 @@ class push_toycar():
                     map_pos = [(R_.dot(p) + T_).flatten().tolist() for p in np.array(pos).reshape(-1, 3, 1)]
                     if self.target_check.update(RT.header.stamp.to_sec(), map_pos):
                         return self.target_check.get_target()
-
+            time.sleep(1)
         rospy.logerr('finish patrol and  no found toycar')
         return None
 
@@ -494,23 +494,25 @@ class target_check():
     def get_target(self):
         return self.target_position
 
-    def update(self, time, position):
+    def update(self, cur_time, position):
         # 检查时间
         new_target_info = []
-        for t in self.target_info:
-            if abs(t-t[0])<self.max_time:
-                new_target_info.append(t)
+        for tinfo in self.target_info:
+            if abs(cur_time-tinfo[0])<self.max_time:
+                new_target_info.append(tinfo)
 
         # 检查距离
         self.target_info =[]
         for pos in position:
+            flag = 1
             for _,p in new_target_info:
                 if self.check_distance(pos,p[-1]):
                     p.append(pos)
-                    self.target_info.append([time,p])
-                    continue
-            #
-            self.target_info.append([time,[pos]])
+                    self.target_info.append([cur_time,p])
+                    flag = 0
+                    break
+            if flag:
+                self.target_info.append([time,[pos]])
         return self.check()
 
     def check_distance(self,target,pred):
