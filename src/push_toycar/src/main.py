@@ -383,7 +383,7 @@ class push_toycar():
                     map_pos = [(R_.dot(p) + T_).flatten().tolist() for p in np.array(pos).reshape(-1, 3, 1)]
                     if self.target_check.update(RT.header.stamp.to_sec(), map_pos):
                         return self.target_check.get_target()
-            time.sleep(1)
+
         rospy.logerr('finish patrol and  no found toycar')
         return None
 
@@ -641,7 +641,7 @@ class control_move():
 
         elif self.state == 'arrival':
             #　位置到了&旋转中
-            theta = np.deg2rad(self.goal[1][0]-cur_pose[1][0])
+            theta = self.goal[1][0]-cur_pose[1][0]
             if abs(theta) < self.yaw_goal_tolerance:
                 print('finish')
                 self.state = 'finish'
@@ -853,7 +853,7 @@ def test_control():
 
 
         def run(self):
-            goal = [[-1,1,0],[0,0,0]]
+            goal = [[-3,4,0],[0,0,-0.157,0.988]]
             move = control_move(goal,self.cmd_vel_pub, self.debug_publish)
             while not rospy.is_shutdown():
                 RT = self.RT.get()
