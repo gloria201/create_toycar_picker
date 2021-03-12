@@ -8,6 +8,7 @@ import threading
 import time
 import numpy as np
 import queue
+
 import rospy
 from detect_torch import ToyCar
 from camera.camera_model import CameraModel
