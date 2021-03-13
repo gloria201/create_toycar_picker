@@ -55,7 +55,7 @@ class push_toycar():
         self.find_toycar_params = find_toycar_params
         self.final_goal = final_goal
         #
-        self.RT = queue.Queue(10)
+
 
         if use_move_base:
             self.move_base = actionlib.SimpleActionClient("/move_base", MoveBaseAction)
@@ -75,6 +75,7 @@ class push_toycar():
 
         self.docking_toycar_params = docking_toycar_params
 
+        self.RT = queue.Queue(10)
         threads = [threading.Thread(target=self.listen_RT)]
         threads.append(threading.Thread(target=self.run))
         try:
@@ -216,53 +217,6 @@ class push_toycar():
             rospy.logerr(' Near Camera No Find Toycar ')
             rospy.logerr(' maybe toycar position is wrong ')
 
-    def test_findtoycar(self):
-        marker_pub = rospy.Publisher("/cube", Marker, queue_size=10)
-        temp_goal = rospy.Publisher("/temp_goal",PoseStamped,queue_size=5)
-        self.target_check = target_check()
-        while not rospy.is_shutdown():
-            img = self.far_cap.read()
-            box, conf = self.detect.run(img)
-            # print(box,conf)
-            for b in box:
-                cv2.rectangle(img, (int(b[0]), int(b[1])), (int(b[2]), int(b[3])), (0, 254, 0), 1)
-            if SHOW:
-                cv2.imshow(self.window_name, img)
-                cv2.waitKey(1)
-            #
-            RT = self.RT.get()
-            if len(box) > 0:
-                points = [[[(b[0] + b[2]) / 2, b[3]]] for b in box]
-                pos = self.far_cap.get_position(points)
-                R_ = np.array(RT.R).reshape(3, 3)
-                T_ = np.array(RT.T).reshape(3, 1)
-                map_pos = [(R_.dot(p) + T_).flatten().tolist() for p in np.array(pos).reshape(-1, 3, 1)]
-                for i,p in enumerate(map_pos):
-                    marker_pub.publish(mark(p, i))
-                if self.target_check.update(RT.header.stamp.to_sec(), map_pos):
-                    target_pos = self.target_check.get_target()
-                    print(' find toycar and start to find next toycar ')
-                    self.target_check = target_check()
-                    marker_pub.publish(mark(target_pos,999,(0.9,0,0)))
-                    for i,p in enumerate():
-                        T_ = RT.T
-                        t_dis = 0.15
-                        dis = ((T_[0] - pos[0]) ** 2 + (T_[1] - pos[1]) ** 2) ** 0.5
-                        # 移动到的位置一定大于当前与目标的位置
-                        assert dis > t_dis
-                        ratio = t_dis / dis
-                        move_pose_position = [(T_[0] - pos[0]) * ratio + pos[0], (T_[1] - pos[1]) * ratio + pos[1], 0]
-
-                        theta = np.arccos((pos[0] - T_[0]) / dis)
-                        if pos[1] - T_[1] < 0:
-                            theta = 360 - theta
-                        r = R.from_euler('zxy', (theta, 0, 0))
-                        move_pose_orientation = r.as_quat()
-
-                        p = Pose(Point(*move_pose_position), Quaternion(*move_pose_orientation))
-                        temp_goal.publish(PoseStamped(Header(i,rospy.Time.now(),'map'),p))
-    # todo 需要多帧确认
-    # todo 确认后，停下, 调整成朝向目标
     def find_toycar(self):
         '''
         按照既定的路线移动，移动过程中寻找小车
@@ -374,7 +328,6 @@ class push_toycar():
                     cv2.imshow(self.window_name, img)
                     cv2.waitKey(1)
                 #
-                RT = self.RT.get()
                 if len(box) > 0:
                     points = [[[(b[0] + b[2]) / 2, b[3]]] for b in box]
                     pos = self.far_cap.get_position(points)
@@ -464,7 +417,7 @@ class push_toycar():
 
         self.near_cap.close()
 
-    def push2target(self,max_time = 360):
+    def push2target(self,max_time=360):
         move = control_move([self.final_goal[:3],self.final_goal[3:]], self.cmd_vel_pub, move_base=self.move_base)
         t = 0
         while not rospy.is_shutdown() and t < max_time:
@@ -487,10 +440,15 @@ class target_check():
         self.max_time = max_time # 最大间隔时间
         self.min_target_times = min_target_times # 最小检测次数
         self.max_distance = max_distance # 最大间隔距离
-        self.target_info = []# [[time,position]]
+        self.target_info = []# [[time,[position]]]
         self.target_position = None
 
-        self.final_goal = np.array(final_goal[:3])
+        # 将通过小车goal计算toycar位置，假定机器人0.2宽
+        dis = 0.2
+        theta = R.from_quat(final_goal[3:]).as_euler('zxy')[0]
+        fx = final_goal[0]+np.cos(theta)*dis
+        fy = final_goal[1]+np.sin(theta)*dis
+        self.final_goal = np.array([fx,fy,0])
         self.min_final_goal = min_final_goal # 距离最终目标至少0.3米
 
     def get_target(self):
@@ -548,8 +506,8 @@ class control_move():
 
 
         # 其他参数
-        self.max_theta = 0.05 # 超出就停止前进
-        self.min_theta = 0.05 # 达到就开始前进
+        self.max_theta = 0.05 # 超出就停止前进，开始旋转
+        self.min_theta = 0.05 # 达到就停止旋转，开始前进
 
         # 是否使用move base
         self.move_base = move_base
@@ -577,42 +535,6 @@ class control_move():
             return state == GoalStatus.SUCCEEDED
         else:
             return self.move(cur_pose)
-
-    def move_old(self, cur_pose):
-        '''
-        -- 如果朝向偏移
-            停下，进行旋转
-        -- 如果朝向正确
-            前进
-
-        # 会震荡
-        '''
-        theta,dis = self.compute_theta(self.goal,cur_pose)
-        if dis < self.xy_goal_tolerance:
-            # 到达位置,只需要旋转
-            if abs(theta)<self.yaw_goal_tolerance:
-                return True
-            else:
-                if theta>0:
-                    self.cur_theta_vel = min(self.cur_theta_vel,self.cur_theta_vel+self.acc_lim_theta)
-                else:
-                    self.cur_theta_vel = min(self.cur_theta_vel, self.cur_theta_vel - self.acc_lim_theta)
-        else:
-            # 没有到达位置
-            # todo 这种写法不方便
-            if abs(theta)>=self.max_theta:
-                # 停下 和 转向
-                if self.cur_x_vel>0:
-                    # 停下
-                    self.cur_x_vel = max(0,self.cur_x_vel-self.acc_lim_x)
-                else:
-                    # 开始转向
-                    if theta > 0:
-                        self.cur_theta_vel = min(self.cur_theta_vel, self.cur_theta_vel + self.acc_lim_theta)
-                    else:
-                        self.cur_theta_vel = min(self.cur_theta_vel, self.cur_theta_vel - self.acc_lim_theta)
-            else:
-                pass
 
     def move(self, cur_pose):
         '''
@@ -670,7 +592,7 @@ class control_move():
                     self.state = 'stop'
                     self.cur_x_vel = max(0, self.cur_x_vel - self.acc_lim_x)
                 else:
-                    if dis<=self.cur_x_vel*self.acc_lim_x/2:
+                    if dis<=(self.cur_x_vel**2)/self.acc_lim_x/2:
                         # 快到了
                         self.cur_x_vel = min(self.cur_x_vel-self.acc_lim_x,self.acc_lim_x)
                     else:
@@ -698,7 +620,7 @@ class control_move():
         else:
             print('the state is error',self.state)
 
-        if self.state == 2:
+        if self.state == 'finish':
             return True
         else:
             twist = Twist()
@@ -725,156 +647,5 @@ class control_move():
         dis = np.linalg.norm(np.array(target_pose[0])[:2]-np.array(cur_pose[0])[:2])
         return theta,dis
 
-def test_target_check():
-    pos = [[1,2,3],[1.3,2.3,3.2],[1,1,1],[1,3,4],[1,3,2],[1,3,4],[1,2,6],[1,3,3]]
-    ck = target_check(min_target_times=2,final_goal=pos[-1])
-    for p in pos:
-        if ck.update(time.time(),[p]):
-            print(ck.get_target())
-
-def test():
-    rospy.init_node("detect_toycar")
-
-    detect_param = rospy.get_param("~detect")
-    camera_param = rospy.get_param("~camera")
-    camera_param_root = rospy.get_param("~camera_param_root")
-
-    detect_interval = rospy.get_param("~detect_interval")
-
-    marker_pub = rospy.Publisher("/cube", Marker, queue_size=10)
-
-    cam_param_root = os.path.join(camera_param_root, camera_param['far_camera']['path'])
-    cam_model = CameraModel(cam_param_root)
-    detect = ToyCar(**detect_param)
-    cap = cv2.VideoCapture(camera_param['far_camera']['dev'])
-    cap.set(5, camera_param['camera_fps'])
-    cap.set(3, int(camera_param['image_shape'][0]))
-    cap.set(4, int(camera_param['image_shape'][1]))
-    print('img height :', cap.get(3))
-    print('img width:', cap.get(4))
-    print('img fps:', cap.get(5))
-
-    cur_index = 0
-    had_pub = False
-    while not rospy.is_shutdown():
-        ret, img = cap.read()
-        if not ret:
-            continue
-        # 间隔检测
-        cur_index += 1
-        if cur_index % detect_interval != 0:
-            continue
-        box, conf = detect.run(img)
-        for b in box:
-            cv2.rectangle(img, (int(b[0]), int(b[1])), (int(b[2]), int(b[3])), (0, 254, 0), 1)
-        if SHOW:
-            cv2.imshow('debug', img)
-            cv2.waitKey(1)
-
-        if len(box) ==0 :
-            continue
-        points = [[[(b[0]+b[2])/2, b[3]]] for b in box]
-        pos = cam_model.run(points)
-        for i,p in enumerate(pos):
-            marker = mark(p[0],ids=i)
-            marker_pub.publish(marker)
-        # 只发布一个目标
-        if not had_pub:
-
-            had_pub = True
-
-def mark(pos,ids=0,color = (0,0.8,0)):
-    marker = Marker()
-
-    # 指定Marker的参考框架
-    marker.header.frame_id = "/map"
-    # 时间戳
-    marker.header.stamp = rospy.Time.now()
-
-    # ns代表namespace，命名空间可以避免重复名字引起的错误
-    marker.ns = "basic_shapes"
-
-    # Marker的id号
-    marker.id = ids
-
-    # Marker的类型，有ARROW，CUBE等
-    marker.type = Marker.CYLINDER
-
-    # Marker的尺寸，单位是m
-    marker.scale.x = 0.05
-    marker.scale.y = 0.05
-    marker.scale.z = 0.2
-
-    # Marker的动作类型有ADD，DELETE等
-    marker.action = Marker.ADD
-
-    # Marker的位置姿态
-    if len(pos)==0:
-        marker.pose.position.x = 0
-        marker.pose.position.y = 1
-    else:
-        marker.pose.position.x = pos[0]
-        marker.pose.position.y = pos[1]
-    marker.pose.position.z = 0.1
-    marker.pose.orientation.x = 0.0
-    marker.pose.orientation.y = 0.0
-    marker.pose.orientation.z = 0.0
-    marker.pose.orientation.w = 1.0
-
-    # Marker的颜色和透明度
-    marker.color.r = color[0]
-    marker.color.g = color[1]
-    marker.color.b = color[2]
-    marker.color.a = 0.5
-
-    # Marker被自动销毁之前的存活时间，rospy.Duration()意味着在程序结束之前一直存在
-    marker.lifetime = rospy.Duration()
-    return marker
-
-def test_control():
-    rospy.init_node("test_control")
-
-    class push_toycar():
-        def __init__(self):
-            self.RT = queue.Queue(10)
-            self.cmd_vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
-            self.debug_publish = rospy.Publisher('/debug_goal', PoseStamped, queue_size=5)
-
-            threads = [threading.Thread(target=self.listen_RT)]
-            threads.append(threading.Thread(target=self.run))
-            try:
-                for t in threads:
-                    t.start()
-            finally:
-                twist = Twist()
-                twist.linear = Vector3(0, 0, 0)
-                twist.angular = Vector3(0, 0, 0)
-                self.cmd_vel_pub.publish(twist)
-
-
-        def run(self):
-            goal = [[-3,4,0],[0,0,-0.157,0.988]]
-            move = control_move(goal,self.cmd_vel_pub, self.debug_publish)
-            while not rospy.is_shutdown():
-                RT = self.RT.get()
-                theta = R.from_matrix(np.array(RT.R).reshape(3, 3)).as_euler('zxy')
-                cur_pose = [RT.T,theta]
-                arrival = move.move(cur_pose)
-                if arrival:
-                    break
-            print('finish move')
-
-        def callback(self, data, q):
-            q.put(data)
-            q.get() if q.qsize() > 1 else time.sleep(0.02)
-
-        def listen_RT(self, ):
-            rospy.Subscriber("laser2map", laser2map, self.callback, self.RT)
-            rospy.spin()
-
-    push_toycar()
-
 if __name__ == '__main__':
     main()
-    # test()
-    # test_control()
